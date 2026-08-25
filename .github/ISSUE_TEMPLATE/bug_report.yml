@@ -1,0 +1,47 @@
+name: Bug report
+description: Something behaves differently than documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: run `marionette validate` and `marionette rules validate`.
+        If either is red, the output usually names the problem directly.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Include the exact command and its full output.
+      render: console
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations: {required: true}
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `marionette --version`
+      placeholder: marionette 0.2.0
+    validations: {required: true}
+  - type: dropdown
+    id: os
+    attributes:
+      label: Platform
+      options: [Linux, macOS, Windows]
+    validations: {required: true}
+  - type: textarea
+    id: target
+    attributes:
+      label: Target
+      description: >
+        Which adapter, and if `mcp`, what server. If the server is not public,
+        say so — do not paste anything containing credentials.
+  - type: checkboxes
+    id: error
+    attributes:
+      label: Error code
+      options:
+        - label: The output contained a `MAR-Exxx` code, and I included the full block (code, hint, context).

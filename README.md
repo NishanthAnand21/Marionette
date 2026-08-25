@@ -2,6 +2,12 @@
 
 **ATLAS has the techniques. Marionette pulls the strings.**
 
+[![ci](https://github.com/NishanthAnand21/Marionette/actions/workflows/ci.yml/badge.svg)](https://github.com/NishanthAnand21/Marionette/actions/workflows/ci.yml)
+[![python](https://img.shields.io/badge/python-3.10%20%E2%80%93%203.13-blue)](https://github.com/NishanthAnand21/Marionette)
+[![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![ATLAS](https://img.shields.io/badge/MITRE%20ATLAS-2026.07-red)](https://atlas.mitre.org)
+
+
 An executable adversary-emulation framework for AI agents and MCP servers —
 the "Atomic Red Team for agents" that does not yet exist.
 

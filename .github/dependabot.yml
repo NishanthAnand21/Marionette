@@ -1,0 +1,8 @@
+version: 2
+updates:
+  # The project depends on PyYAML and nothing else at runtime, so the realistic
+  # supply-chain surface here is the Actions used by CI.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: monthly}
+    commit-message: {prefix: "ci"}

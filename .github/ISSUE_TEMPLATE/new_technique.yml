@@ -1,0 +1,47 @@
+name: Technique proposal
+description: Propose a new attack technique for the pack
+labels: [technique]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) first — especially
+        the part about assertions that discriminate. A technique that also
+        passes against the `hardened` target is testing the harness, not the
+        target, and will fail CI.
+  - type: input
+    id: atlas
+    attributes:
+      label: ATLAS technique id
+      description: >
+        Must exist verbatim in `reference/atlas-catalog.yaml`. Read its real
+        description and confirm it matches what you intend to test — the most
+        common error is an id that exists but means something else.
+      placeholder: AML.T0051.001
+    validations: {required: true}
+  - type: input
+    id: owasp
+    attributes:
+      label: OWASP ASI id
+      placeholder: ASI01
+  - type: textarea
+    id: attack
+    attributes:
+      label: The real-world attack
+      description: What an attacker actually does, not how the harness would model it.
+    validations: {required: true}
+  - type: textarea
+    id: assertion
+    attributes:
+      label: What would you assert on
+      description: >
+        What in the event stream proves this fired, and why would that assertion
+        NOT hold against a defended agent?
+    validations: {required: true}
+  - type: textarea
+    id: mechanism
+    attributes:
+      label: Missing range mechanism
+      description: >
+        If the range cannot express this today, say which verb or tool is
+        missing. Do not weaken an assertion to make a technique pass.
