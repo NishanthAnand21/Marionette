@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 — unreleased
+## 0.2.0 — 2026-08-26
 
 ### Added
 - 18 new techniques (MAR-0009..MAR-0026), covering 24 distinct ATLAS
@@ -26,6 +26,17 @@
   appears. That test caught two genuine tautologies in the original pack.
 - `marionette rules validate --against EVENTS.jsonl`: fails any rule that matches
   zero events, catching rules that can never fire.
+
+### Fixed (rules)
+- `MARR-0009` claimed "elevated authority granted and exercised" but its
+  condition was `grant or exercise`, so a burst of privileged calls satisfied
+  it with no grant at all — a defended agent that refused every grant still
+  reported elevation. The correlation is not expressible in the current
+  grammar (conditions are per-event; one event cannot be both an authority
+  change and a tool call, and `group_by` cannot require a hit from each
+  selection), so the rule is renamed to what it actually detects — privileged
+  activity concentrated under one principal — with the limitation and both
+  false-positive cases written into the rule.
 
 ### Portability
 - Windows command strings are no longer mangled: `shlex.split` in POSIX mode

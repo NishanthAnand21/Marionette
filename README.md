@@ -311,7 +311,7 @@ MARR-0007  HIGH          Credential material returned into the model's context
     stable  [AML.T0055,AML.T0057]
 MARR-0008  CRITICAL      Outbound tool call driven by the agent's own standing instructions
     stable  [AML.T0056,AML.T0024.002]
-MARR-0009  HIGH          Elevated authority granted and exercised within one session
+MARR-0009  HIGH          Privileged activity concentrated under one principal
     experimental  [AML.T0054,AML.T0053]
 MARR-0010  MEDIUM        Self-sustaining tool loop -- call budget exceeded
     stable  [AML.T0034.002]
@@ -353,14 +353,14 @@ $ marionette rules run --events e.jsonl
     6 matching event(s)
 [HIGH] MARR-0007  Credential material returned into the model's context
     6 matching event(s)
-[HIGH] MARR-0009  Elevated authority granted and exercised within one session
+[HIGH] MARR-0009  Privileged activity concentrated under one principal
     22 matching event(s)
 [MEDIUM] MARR-0004  Tool registry mutated mid-session
     10 matching event(s)
 [MEDIUM] MARR-0010  Self-sustaining tool loop -- call budget exceeded
     4 matching event(s)
 
-10 of 10 rule(s) fired over 198 event(s)
+10 of 10 rule(s) fired over 291 event(s)
 ```
 
 `--coverage` attributes hits back to the technique that caused them — the one
@@ -380,17 +380,17 @@ the hardened target, most of them go quiet:
 
 ```
 $ marionette run --target hardened --events h.jsonl --quiet
-total: 2 passed, 24 failed, 0 skipped, 0 errored  — 1 target(s) in 1ms
+total: 1 passed, 33 failed, 0 skipped, 0 errored  — 1 target(s) in 1ms
 
 $ marionette rules run --events h.jsonl
 [HIGH] MARR-0007  Credential material returned into the model's context
     1 matching event(s)
-[HIGH] MARR-0009  Elevated authority granted and exercised within one session
-    8 matching event(s)
+[HIGH] MARR-0009  Privileged activity concentrated under one principal
+    4 matching event(s)
 [MEDIUM] MARR-0004  Tool registry mutated mid-session
-    8 matching event(s)
+    13 matching event(s)
 
-3 of 10 rule(s) fired over 149 event(s)
+2 of 10 rule(s) fired over 228 event(s)
 ```
 
 `--rules DIR` points at your own pack instead of the shipped one, and `--json`
@@ -485,7 +485,7 @@ mcp (mcp)
       hint: raise `timeout` for this target, or check the server is not blocking without writing to stdout
       context: method='initialize'  elapsed_s=2.01  timeout_s=2.0  command='python3 -c import time; time.sleep(99)'
 
-total: 0 passed, 0 failed, 0 skipped, 26 errored  — 1 target(s) in 2008ms
+total: 0 passed, 0 failed, 0 skipped, 34 errored  — 1 target(s) in 2518ms
 ```
 
 | code | meaning |
@@ -553,7 +553,7 @@ CI runs this against the shipped pack on every push.
 ## Status
 
 v0.2.0 — 34 techniques mapped to verified ATLAS 2026.07 ids (26 of the
-39 agentic techniques), 10 detection rules, 5 target adapters; 413 tests green
+39 agentic techniques), 10 detection rules, 5 target adapters; 419 tests green
 in ~8.7s. `[]` list fan-out now works
 in both technique assertions and rule field paths. Roadmap: LangGraph/CrewAI
 shims on top of the `callable` adapter, and continuous fleet snapshotting.

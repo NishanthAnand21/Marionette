@@ -1,0 +1,59 @@
+id: MARR-0009
+title: Privileged activity concentrated under one principal
+status: experimental
+level: high
+description: >
+  Two or more events under the same principal that are either a sensitive
+  scope grant or a call to a tool needing that class of scope. The legitimate
+  version is a human approving an elevation for a task the user asked for; the
+  attack version is an injected instruction talking the agent through its own
+  approval flow and then spending the result.
+
+  Read the title literally. The grammar is per-event and stateless: it can
+  group and count, but it cannot require one hit from each selection in the
+  same group. So this fires on a burst of privileged calls with no grant at
+  all, and it does not prove ordering. It is a concentration signal to be
+  confirmed against the raw stream, not proof of escalation. Said plainly
+  because a rule implying more precision than it has is worse than one that
+  admits its limit.
+detection:
+  grant:
+    type: agent.authority
+    kind: grant
+    data.granted|re: '(secret|admin|write|delete|send|\*)'
+  exercise:
+    type: agent.tool.call
+    tool_name:
+      - read_secret
+      - read_credentials
+      - exec_code
+      - delete_records
+      - http_post
+      - send_email
+  # `or`, not `and`: conditions are evaluated per event, and one event cannot
+  # be both an authority change and a tool call, so `and` never matches. This
+  # is why the title says "concentrated" rather than "granted and exercised" --
+  # the grammar can group and count, but it cannot require a hit from each
+  # selection within a group.
+  condition: grant or exercise
+  group_by: principal
+  min_count: 2
+covers: [MAR-0003, MAR-0006, MAR-0008, MAR-0023]
+atlas: [AML.T0054, AML.T0053]
+owasp: [ASI03, LLM06]
+falsepositives:
+  - >
+    A defended agent that REFUSED the grant still matches, because the
+    attempted tool calls match on their own. Check for `agent.authority`
+    events whose `kind` is `blocked` before escalating.
+  - >
+    A legitimate operator-initiated elevation (provenance `user`) looks
+    identical to an induced one at this granularity.
+  - >
+    Any just-in-time elevation design fires here every time it works as
+    intended. This rule earns its keep only where elevation is supposed to be
+    rare; in a JIT-by-default deployment it is pure noise.
+  - >
+    Because the condition is an OR grouped by principal, two grants with no
+    exercise (or two privileged calls with no grant) also reach the threshold.
+    Read the matched event ids; do not act on the count alone.
