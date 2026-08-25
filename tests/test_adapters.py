@@ -425,8 +425,16 @@ def test_http_slow_response_trips_the_configured_timeout():
 
 
 def test_http_connection_refused_is_a_connect_error():
+    """A dead endpoint must fail as a target error, not hang or crash.
+
+    POSIX refuses a connection to a closed local port immediately, so this is
+    a `TargetConnectError`. Windows can instead drop the SYN and let it run to
+    the timeout, which surfaces as `TargetTimeoutError`. Both are correct
+    typed target errors and both are what the operator needs to see; pinning
+    the exact subclass would be asserting an OS detail, not our behaviour.
+    """
     t = HTTPMCPTarget(name="h", url=closed_port_url(), timeout=2.0)
-    with pytest.raises(TargetConnectError):
+    with pytest.raises((TargetConnectError, TargetTimeoutError)):
         t.connect()
     # health() never raises, it reports.
     ok, reason = t.health()

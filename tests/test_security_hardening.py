@@ -202,23 +202,39 @@ def test_wedged_server_is_reaped_within_the_shutdown_budget(tmp_path):
     import time
 
     script = tmp_path / "stubborn.py"
+    # Must complete the handshake, otherwise connect() fails and reaps the
+    # child before shutdown is ever exercised -- which would make this test
+    # silently cover the wrong path. It answers initialize, then ignores both
+    # stdin EOF and SIGTERM.
     script.write_text(
-        "import sys, time, signal\n"
+        "import sys, json, time, signal\n"
         "try: signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
         "except Exception: pass\n"
-        "for line in sys.stdin: pass\n"
+        "for line in sys.stdin:\n"
+        "    line = line.strip()\n"
+        "    if not line: continue\n"
+        "    try: m = json.loads(line)\n"
+        "    except Exception: continue\n"
+        "    if m.get('method') == 'initialize':\n"
+        "        sys.stdout.write(json.dumps({'jsonrpc':'2.0','id':m.get('id'),"
+        "'result':{'protocolVersion':'2024-11-05','capabilities':{},"
+        "'serverInfo':{'name':'stubborn'}}}) + chr(10))\n"
+        "        sys.stdout.flush()\n"
         "while True: time.sleep(1)\n")
     from marionette.targets import build
 
-    t = build("mcp", name="s", command=f"{sys.executable} {script}", timeout=1)
+    t = build("mcp", name="s", command=[sys.executable, str(script)], timeout=5)
     try:
         t.connect()
     except Exception:
         pass
+    proc = t._proc            # grab the handle before close() drops it
     t0 = time.monotonic()
     t.close()
     assert time.monotonic() - t0 < 8, "shutdown escalation is unbounded"
-    time.sleep(0.2)
-    left = subprocess.run(["pgrep", "-f", str(script)],
-                          capture_output=True, text=True).stdout.split()
-    assert not left, f"orphaned processes: {left}"
+
+    # Ask the process object rather than shelling out to `pgrep`, which does
+    # not exist on Windows. A non-None returncode means it was actually reaped,
+    # which is the invariant -- "no matching process name" only approximated it.
+    assert proc is not None, "server never started"
+    assert proc.poll() is not None, "child survived close()"

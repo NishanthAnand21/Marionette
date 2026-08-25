@@ -159,21 +159,29 @@ def test_no_process_leaks_from_crashing_and_hanging_mcp_targets():
     assert res.totals[ERROR] == len(specs)
     assert res.exit_code == 2
 
-    # No child of this process is left running or unreaped.
-    deadline = time.monotonic() + 5.0
-    leaked = []
-    while time.monotonic() < deadline:
-        try:
-            pid, status = os.waitpid(-1, os.WNOHANG)
-        except ChildProcessError:
-            leaked = []
-            break
-        if pid == 0:
-            leaked = ["a child is still running after run_matrix returned"]
-            time.sleep(0.05)
-            continue
-        leaked.append(f"reaped orphan pid {pid} (status {status})")
-    assert not leaked, leaked
+    # No child of this process is left running or unreaped. `waitpid(-1)` is
+    # the sharpest probe but is POSIX-only -- Windows has no process-group
+    # wait, so there the invariant is checked per-child instead.
+    if hasattr(os, "WNOHANG"):
+        deadline = time.monotonic() + 5.0
+        leaked = []
+        while time.monotonic() < deadline:
+            try:
+                pid, status = os.waitpid(-1, os.WNOHANG)
+            except ChildProcessError:
+                leaked = []
+                break
+            if pid == 0:
+                leaked = ["a child is still running after run_matrix returned"]
+                time.sleep(0.05)
+                continue
+            leaked.append(f"reaped orphan pid {pid} (status {status})")
+        assert not leaked, leaked
+    else:  # pragma: no cover - Windows
+        import subprocess as _sp
+
+        assert not _sp._active, (
+            f"unreaped child processes remain: {_sp._active}")
 
 
 # --------------------------------------------------------------------------
