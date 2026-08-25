@@ -5,7 +5,7 @@ import os
 import pytest
 
 from conftest import GOOD_TECHNIQUE, TECH_DIR, write_yaml
-from praxis.validate import (Problem, validate_dir, validate_file,
+from marionette.validate import (Problem, validate_dir, validate_file,
                              validate_fleet)
 
 
@@ -41,8 +41,8 @@ def test_good_fixture_is_completely_clean(good_technique_yaml):
 
 # --- negative cases ----------------------------------------------------------
 
-BAD_ID = GOOD_TECHNIQUE.replace("id: PRX-9001", "id: PRX-9")
-NO_ID = GOOD_TECHNIQUE.replace("id: PRX-9001\n", "")
+BAD_ID = GOOD_TECHNIQUE.replace("id: MAR-9001", "id: MAR-9")
+NO_ID = GOOD_TECHNIQUE.replace("id: MAR-9001\n", "")
 BLANK_NAME = GOOD_TECHNIQUE.replace("name: Fixture Technique", 'name: ""')
 NO_STEPS = GOOD_TECHNIQUE.replace("  - action: list_tools\n", "")
 BAD_ACTION = GOOD_TECHNIQUE.replace("action: list_tools", "action: rm_rf")
@@ -62,11 +62,11 @@ NO_ASSERTIONS = GOOD_TECHNIQUE.split("assertions:")[0] + \
 BAD_MIN_COUNT = GOOD_TECHNIQUE.replace("min_count: 1", "min_count: 0")
 NEGATIVE_MIN_COUNT = GOOD_TECHNIQUE.replace("min_count: 1", "min_count: -3")
 STRING_MIN_COUNT = GOOD_TECHNIQUE.replace("min_count: 1", 'min_count: "lots"')
-UNPARSEABLE = "id: PRX-9001\nname: [unclosed\nsteps:\n  - action: list_tools\n"
+UNPARSEABLE = "id: MAR-9001\nname: [unclosed\nsteps:\n  - action: list_tools\n"
 
 
 @pytest.mark.parametrize("body,needle", [
-    (BAD_ID, "PRX-####"),
+    (BAD_ID, "MAR-####"),
     (NO_ID, "required key `id`"),
     (BLANK_NAME, "required key `name`"),
     (NO_STEPS, "required key `steps`"),
@@ -108,7 +108,7 @@ def test_multiple_problems_are_all_reported(tmp_path):
     problems = errors(validate_file(path))
     assert len(problems) >= 3, messages(problems)
     joined = messages(problems)
-    assert "PRX-####" in joined and "rm_rf" in joined and "nope" in joined
+    assert "MAR-####" in joined and "rm_rf" in joined and "nope" in joined
 
 
 def test_duplicate_ids_across_files(tmp_path):
@@ -117,13 +117,13 @@ def test_duplicate_ids_across_files(tmp_path):
         "name: Fixture Technique", "name: Duplicate Twin"))
     problems = errors(validate_dir(str(tmp_path)))
     assert len(problems) == 1
-    assert "duplicate `id` 'PRX-9001'" in problems[0].message
+    assert "duplicate `id` 'MAR-9001'" in problems[0].message
     assert problems[0].path.endswith("b.yaml")
 
 
 def test_distinct_ids_in_a_dir_are_fine(tmp_path):
     write_yaml(tmp_path, "a.yaml", GOOD_TECHNIQUE)
-    write_yaml(tmp_path, "b.yaml", GOOD_TECHNIQUE.replace("PRX-9001", "PRX-9002"))
+    write_yaml(tmp_path, "b.yaml", GOOD_TECHNIQUE.replace("MAR-9001", "MAR-9002"))
     assert errors(validate_dir(str(tmp_path))) == []
 
 
@@ -174,10 +174,10 @@ def test_empty_directory_warns(tmp_path):
 # --- Problem rendering ------------------------------------------------------
 
 def test_problem_render_plain_and_color():
-    p = Problem("techniques/x.yaml", "something is off", "error", "PRX-0001")
+    p = Problem("techniques/x.yaml", "something is off", "error", "MAR-0001")
     plain = p.render()
     assert "techniques/x.yaml" in plain
-    assert "PRX-0001" in plain
+    assert "MAR-0001" in plain
     assert "something is off" in plain
     assert "\033[" not in plain
     assert "\033[" in p.render(color=True)

@@ -1,15 +1,15 @@
-# The Praxis agent event schema
+# The Marionette agent event schema
 
-This is the field surface that detection rules (`praxis/rules.py`, `rules/`)
+This is the field surface that detection rules (`marionette/rules.py`, `rules/`)
 run against. It is produced at the **adapter boundary** — every target adapter
-normalizes what it observes into `praxis.schema.AgentEvent` — so a rule written
+normalizes what it observes into `marionette.schema.AgentEvent` — so a rule written
 here is portable to any deployment that emits the same envelope.
 
 Events are written one JSON object per line:
 
 ```
-praxis run --events e.jsonl          # produce
-praxis rules run --events e.jsonl    # consume
+marionette run --events e.jsonl          # produce
+marionette rules run --events e.jsonl    # consume
 ```
 
 ---
@@ -24,7 +24,7 @@ names first, then fall through to `data` (see *Field resolution*).
 | `type` | string | Event class. One of the eleven below. Always present. |
 | `ts` | float | Unix seconds when the event was emitted. |
 | `event_id` | string | Random hex id. Reported in rule matches so you can pivot back into the raw stream. |
-| `run_id` | string \| null | Praxis bookkeeping. **Banned in rules.** |
+| `run_id` | string \| null | Marionette bookkeeping. **Banned in rules.** |
 | `technique_id` | string \| null | Which technique provoked it. **Banned in rules.** |
 | `actor` | string \| null | Which agent / session acted. |
 | `target` | string \| null | Which target the event came from (the adapter's name). |
@@ -36,9 +36,9 @@ names first, then fall through to `data` (see *Field resolution*).
 | `data` | object | Typed payload. Its shape is keyed by `data.kind` — see below. |
 
 `run_id` and `technique_id` are rejected at rule-parse time. They exist only
-because Praxis generated the traffic and are absent from any real agent's
+because Marionette generated the traffic and are absent from any real agent's
 telemetry; a rule that keys on them is a restatement of the attack, not a
-detection. (`praxis rules run --coverage` uses `technique_id` *after the fact*,
+detection. (`marionette rules run --coverage` uses `technique_id` *after the fact*,
 to attribute hits back to the technique that caused them. The range knows which
 attack it ran; the detection must not.)
 
@@ -64,17 +64,17 @@ supplied the instruction the agent is acting on.
 | `sub-agent` | A delegated agent's reply drove the action (transitive injection). |
 | `artifact` | An embedded payload in a loaded model / skill / plugin. |
 | `system-prompt` | The agent's own standing instructions drove it — tampered, or being exfiltrated. |
-| `praxis` | The harness itself drove the call. Emitted by the `mcp`, `http`, and `callable` adapters, which cannot see *why* a real agent would have called a tool and refuse to guess. Never a finding on its own. |
+| `marionette` | The harness itself drove the call. Emitted by the `mcp`, `http`, and `callable` adapters, which cannot see *why* a real agent would have called a tool and refuse to guess. Never a finding on its own. |
 | `null` | Not attributed. Treat as untrusted, not as trusted. |
 
 Provenance is an **open vocabulary**, not an enum. The seven values above the
-line (`user` … `system-prompt`) plus `praxis` are the ones adapter code
+line (`user` … `system-prompt`) plus `marionette` are the ones adapter code
 produces; the schema does not validate the field, so a technique step or a
 shim may pass any label. The shipped pack uses two such free-form labels:
 
 | Value | Where it comes from |
 |---|---|
-| `thread-message` | Passed by `techniques/PRX-0012-thread-context-poisoning.yaml` — another participant's message in a shared thread. |
+| `thread-message` | Passed by `techniques/MAR-0012-thread-context-poisoning.yaml` — another participant's message in a shared thread. |
 | `untrusted-*` (e.g. `untrusted-wiki`) | Passed as the `provenance` argument to `rag_index`, naming the corpus-ingestion origin. |
 
 Treat everything that is not `user` as untrusted, including labels you have
@@ -88,11 +88,11 @@ most of the shipped pack keys on it rather than on payload wording.
 
 ## Event classes and their `data.kind` discriminators
 
-Constants live in `praxis/schema.py`; the payloads are emitted by
-`praxis/targets/base.py`, `praxis/targets/mock.py`, and — for the `blocked`
-kind only — `praxis/targets/hardened.py`.
+Constants live in `marionette/schema.py`; the payloads are emitted by
+`marionette/targets/base.py`, `marionette/targets/mock.py`, and — for the `blocked`
+kind only — `marionette/targets/hardened.py`.
 
-Not every kind appears in a default `praxis run`. `artifact_load`,
+Not every kind appears in a default `marionette run`. `artifact_load`,
 `artifact_payload`, `revoke`, and `identity_change` are produced by range verbs
 (`load_artifact`, `revoke`, `set_identity`) that no shipped technique currently
 exercises; they are reachable and tested, but you will not see them in
@@ -158,7 +158,7 @@ schema untouched. Deliberately *not* `agent.delegation` — a blocked instructio
 is the opposite of a delegation, and emitting one there would make injection
 assertions pass against the very defence that stopped them.
 
-The `defence` values, and their counts over a full `praxis run --target
+The `defence` values, and their counts over a full `marionette run --target
 hardened`:
 
 ```
@@ -178,13 +178,13 @@ hardened`:
 ```
 
 ### `target.snapshot`
-Declared in `praxis/schema.py` and **never emitted**. `praxis snapshot` writes
+Declared in `marionette/schema.py` and **never emitted**. `marionette snapshot` writes
 its own JSON document (`{target, ts, tools: {name: {description_hash,
-schema_hash, description}}}`) rather than an event; `praxis drift` diffs two of
+schema_hash, description}}}`) rather than an event; `marionette drift` diffs two of
 those. The constant is reserved for a future streaming fingerprint. Do not
 write a rule against it.
 
-### `praxis.technique.start` / `praxis.technique.end`
+### `marionette.technique.start` / `marionette.technique.end`
 Range bookkeeping. `start` carries `data.name`. Rules cannot key on
 `technique_id`, so these are effectively invisible to detection content — which
 is the point.
@@ -221,7 +221,7 @@ detection:
 ```
 
 ```
-$ praxis rules run --events e.jsonl --rules ./my-rules
+$ marionette rules run --events e.jsonl --rules ./my-rules
 no rules fired over 198 event(s)
 ```
 
@@ -234,7 +234,7 @@ Use the whole-list form until fan-out lands:
 The same silent-miss applies to any misspelled path (`data.tool_name`,
 `provenence`). A rule that fires on nothing looks identical to a rule with
 nothing to fire on, so diff a new rule against a stream you *know* is dirty —
-`praxis run --events` against the `mock` target — before trusting a zero.
+`marionette run --events` against the `mock` target — before trusting a zero.
 
 ### Operators
 
@@ -257,7 +257,7 @@ that field.
 
 `group_by` thresholds assume one session per stream. A concatenated
 multi-session file aggregates counts across sessions and will over-fire; use
-`praxis rules run --coverage`, which evaluates per unit of work.
+`marionette rules run --coverage`, which evaluates per unit of work.
 
 ---
 
@@ -267,7 +267,7 @@ The confused-deputy condition: a privileged tool was called, and the thing that
 asked for it was not the user.
 
 ```yaml
-id: PRXR-0005
+id: MARR-0005
 title: Privileged tool invoked on behalf of untrusted content
 status: stable
 level: critical
@@ -280,7 +280,7 @@ detection:
   trusted:
     provenance: user
   condition: selection and not trusted
-covers: [PRX-0003, PRX-0022, PRX-0023, PRX-0026]
+covers: [MAR-0003, MAR-0022, MAR-0023, MAR-0026]
 atlas: [AML.T0053, AML.T0055]
 owasp: [ASI03, LLM06]
 falsepositives:
@@ -289,7 +289,7 @@ falsepositives:
     disables the rule.
 ```
 
-Against a stream from `praxis run --events`, this matches events such as:
+Against a stream from `marionette run --events`, this matches events such as:
 
 ```json
 {"type": "agent.tool.call", "tool_name": "read_secret",
@@ -297,6 +297,6 @@ Against a stream from `praxis run --events`, this matches events such as:
  "provenance": "tool-output", "data": {"arguments": {}}}
 ```
 
-`falsepositives` is not optional decoration. `praxis rules validate` warns on
+`falsepositives` is not optional decoration. `marionette rules validate` warns on
 any rule that omits it: a rule without a false-positive story is how alert
 fatigue starts.

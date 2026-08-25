@@ -17,9 +17,9 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
-# praxis run artifacts (reports, snapshots, event dumps)
+# marionette run artifacts (reports, snapshots, event dumps)
 *.junit.xml
-praxis-results.json
+marionette-results.json
 snapshot-*.json
 events-*.jsonl
 

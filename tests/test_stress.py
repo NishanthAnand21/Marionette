@@ -15,12 +15,12 @@ import time
 
 import pytest
 
-from praxis.config import TargetSpec
-from praxis.detection import Assertion
-from praxis.engine import run_matrix, run_target
-from praxis.runner import ERROR, FAIL, PASS, SKIP
-from praxis.schema import TOOL_LIST
-from praxis.technique import Step, Technique
+from marionette.config import TargetSpec
+from marionette.detection import Assertion
+from marionette.engine import run_matrix, run_target
+from marionette.runner import ERROR, FAIL, PASS, SKIP
+from marionette.schema import TOOL_LIST
+from marionette.technique import Step, Technique
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import (enumerate_technique, failing_technique,  # noqa: E402
@@ -32,15 +32,15 @@ HOSTILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 FLEET_N = 60
 
 
-def skipping_technique(tid="PRX-9101"):
+def skipping_technique(tid="MAR-9101"):
     """Requires a capability no adapter has, so it must always SKIP."""
     t = enumerate_technique(tid)
     t.name = "Needs A Capability Nobody Has"
-    t.requires = ["praxis_capability_that_does_not_exist"]
+    t.requires = ["marionette_capability_that_does_not_exist"]
     return t
 
 
-def erroring_technique(tid="PRX-9102"):
+def erroring_technique(tid="MAR-9102"):
     """A step with missing arguments blows up mid-dispatch -> ERROR."""
     t = enumerate_technique(tid)
     t.name = "Blows Up Mid-Run"
@@ -51,9 +51,9 @@ def erroring_technique(tid="PRX-9102"):
 
 
 def mixed_techniques():
-    return [enumerate_technique("PRX-9001"),
-            failing_technique("PRX-9002"),
-            skipping_technique("PRX-9101")]
+    return [enumerate_technique("MAR-9001"),
+            failing_technique("MAR-9002"),
+            skipping_technique("MAR-9101")]
 
 
 def fleet(n=FLEET_N, prefix="t"):
@@ -152,7 +152,7 @@ def test_no_process_leaks_from_crashing_and_hanging_mcp_targets():
              spec("crash-2", "crash", 5.0),
              spec("hang-2", "hang", 0.4),
              TargetSpec(name="missing", kind="mcp",
-                        command="praxis-no-such-binary-xyz", timeout=1.0)]
+                        command="marionette-no-such-binary-xyz", timeout=1.0)]
     res = run_matrix([enumerate_technique()], specs, workers=4)
     assert len(res.runs) == len(specs)
     # Every one of them is an error; none of them is a hang or a crash of ours.
@@ -190,7 +190,7 @@ def test_each_collector_holds_only_its_own_targets_events():
         assert names == {run.target_name}, (
             f"{run.target_name}'s collector saw {sorted(names)}")
         tids = {e.technique_id for e in run.collector.events}
-        assert tids <= {"PRX-9001", "PRX-9002", None}
+        assert tids <= {"MAR-9001", "MAR-9002", None}
         run_ids |= {e.run_id for e in run.collector.events}
     assert run_ids == {res.run_id}
 

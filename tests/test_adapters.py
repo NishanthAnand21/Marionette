@@ -1,6 +1,6 @@
 """Adapter conformance + per-adapter behaviour.
 
-The conformance suite is parametrised over ``praxis.targets.registry()``, so a
+The conformance suite is parametrised over ``marionette.targets.registry()``, so a
 new adapter inherits every contract test the day it is registered.  If a kind
 appears here without a builder the suite fails loudly rather than silently
 skipping it -- an untested adapter is exactly the thing this file exists to
@@ -14,14 +14,14 @@ import sys
 
 import pytest
 
-from praxis.errors import (TargetConnectError, TargetError, TargetProtocolError,
+from marionette.errors import (TargetConnectError, TargetError, TargetProtocolError,
                            TargetTimeoutError, UnsupportedCapability)
-from praxis.schema import TOOL_LIST
-from praxis.targets import ToolResult, ToolSpec, registry
-from praxis.targets.base import Target
-from praxis.targets.callable import CallableTarget, load_object
-from praxis.targets.http import HTTPMCPTarget
-from praxis.targets.mcp import MCPTarget
+from marionette.schema import TOOL_LIST
+from marionette.targets import ToolResult, ToolSpec, registry
+from marionette.targets.base import Target
+from marionette.targets.callable import CallableTarget, load_object
+from marionette.targets.http import HTTPMCPTarget
+from marionette.targets.mcp import MCPTarget
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fixtures.http_stub import closed_port_url, stub_server  # noqa: E402
@@ -148,14 +148,14 @@ def test_list_tools_returns_specs_and_emits_exactly_one_list_event(adapter):
 
 
 def test_call_tool_on_missing_tool_fails_softly(adapter):
-    res = adapter.call_tool("praxis_no_such_tool_xyz", {})
+    res = adapter.call_tool("marionette_no_such_tool_xyz", {})
     assert isinstance(res, ToolResult)
     assert res.ok is False, f"{adapter.kind} claimed success for a missing tool"
 
 
 def test_events_carry_the_adapter_name_as_target(adapter):
     adapter.list_tools()
-    adapter.call_tool("praxis_no_such_tool_xyz", {})
+    adapter.call_tool("marionette_no_such_tool_xyz", {})
     assert adapter.collector.events
     for ev in adapter.collector.events:
         assert ev.target == adapter.name, (
@@ -355,8 +355,8 @@ def test_callable_requires_a_target_or_path():
 
 def test_callable_load_object_errors_name_the_path():
     with pytest.raises(TargetConnectError) as exc:
-        load_object("praxis_no_such_module_xyz:thing")
-    assert "praxis_no_such_module_xyz" in str(exc.value)
+        load_object("marionette_no_such_module_xyz:thing")
+    assert "marionette_no_such_module_xyz" in str(exc.value)
     with pytest.raises(TargetConnectError):
         load_object("nodots")
     with pytest.raises(TargetConnectError):
@@ -487,7 +487,7 @@ def test_mcp_server_that_closes_stdout_but_keeps_running_is_not_a_hang():
         with pytest.raises(TargetError) as exc:
             t.list_tools()
         # EOF on stdout is reported as a crash, not as a 10s timeout.
-        assert exc.value.code in ("PRX-E104", "PRX-E102")
+        assert exc.value.code in ("MAR-E104", "MAR-E102")
     finally:
         t.close()
     assert t._proc is None
@@ -516,6 +516,6 @@ def test_mcp_crashing_server_is_reported_with_stderr():
     try:
         with pytest.raises(TargetError) as exc:
             t.list_tools()
-        assert exc.value.code == "PRX-E104"
+        assert exc.value.code == "MAR-E104"
     finally:
         t.close()

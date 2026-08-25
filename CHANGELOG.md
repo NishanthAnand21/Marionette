@@ -3,14 +3,14 @@
 ## 0.2.0 — unreleased
 
 ### Added
-- 18 new techniques (PRX-0009..PRX-0026), covering 24 distinct ATLAS
+- 18 new techniques (MAR-0009..MAR-0026), covering 24 distinct ATLAS
   techniques across 9 tactics — 18 of the 39 agentic techniques.
 - `reference/atlas-catalog.yaml`: the pinned, machine-readable MITRE ATLAS
-  **2026.07** release (16 tactics, 178 techniques). `praxis validate` now
+  **2026.07** release (16 tactics, 178 techniques). `marionette validate` now
   cross-checks every `atlas:` and `owasp_asi:` id against it.
-- Parallel multi-target execution (`praxis run --targets-file`, `--workers`,
+- Parallel multi-target execution (`marionette run --targets-file`, `--workers`,
   `--fail-fast`) with per-target fault isolation.
-- Typed error taxonomy (`PRX-E1xx` target, `E2xx` technique, `E3xx` config)
+- Typed error taxonomy (`MAR-E1xx` target, `E2xx` technique, `E3xx` config)
   with actionable hints and stable exit codes.
 - JUnit XML and JSON reporters for CI.
 - Extended range verb surface: 19 verbs including `rag_index`/`rag_query`,
@@ -24,7 +24,7 @@
   `hardened` — a technique that passes on both is testing the harness, not the
   target, and `tests/test_negative_controls.py` fails the build when one
   appears. That test caught two genuine tautologies in the original pack.
-- `praxis rules validate --against EVENTS.jsonl`: fails any rule that matches
+- `marionette rules validate --against EVENTS.jsonl`: fails any rule that matches
   zero events, catching rules that can never fire.
 
 ### Portability
@@ -44,7 +44,7 @@
   group so it can be delivered — then `SIGKILL`. On Windows `terminate()` is
   `TerminateProcess`, an immediate hard kill, so without an EOF window the
   "terminate then kill" escalation was meaningless there. Budget is bounded
-  (0.5s + 2s, tunable via `PRAXIS_EOF_GRACE` / `PRAXIS_SIGNAL_GRACE`).
+  (0.5s + 2s, tunable via `MARIONETTE_EOF_GRACE` / `MARIONETTE_SIGNAL_GRACE`).
 - Report artifacts (JSON, JUnit XML, JSONL) and snapshots are written with
   `newline=""`, so they are LF-only and byte-identical on every platform.
   Previously Windows CRLF translation put a stray carriage return inside every
@@ -59,7 +59,7 @@
   rather than silently continuing in a protocol that was never agreed.
 
 ### Security
-- Target subprocesses no longer inherit the operator's environment. Praxis
+- Target subprocesses no longer inherit the operator's environment. Marionette
   spawns servers it is testing for hostility; a malicious one could read
   `AWS_SECRET_ACCESS_KEY`, `GITHUB_TOKEN` and every other ambient secret.
   Opt back in per target with `inherit_env: true`.
@@ -69,12 +69,12 @@
   we never issued are refused.
 - Target-controlled text is sanitised before it reaches the terminal. A tool
   description containing `ESC [ 2K CR` could repaint the line it printed on,
-  letting a hostile server make `praxis drift` display "no drift detected"
+  letting a hostile server make `marionette drift` display "no drift detected"
   while poisoning a tool. Bidi overrides are neutralised the same way.
 - JUnit XML strips codepoints illegal in XML 1.0. A single NUL in a
   server-controlled error string made the whole artifact unparseable, so CI
   reported "no test results" and went green by absence — suppressing exactly
-  the findings Praxis had produced.
+  the findings Marionette had produced.
 - Rule regexes run against a length-capped haystack, and target names may not
   contain path separators.
 
@@ -85,7 +85,7 @@
   (MLOps artifact discovery) for tool enumeration, `T0024` (inference-API
   exfiltration) for tool-invocation exfiltration. Root cause: `dist/ATLAS.yaml`
   is deprecated and frozen at legacy 5.6.0, and contains no agentic techniques
-  at all. Praxis now pins `dist/v6/`.
+  at all. Marionette now pins `dist/v6/`.
 - **`fail_fast` race.** The stop flag was only set by the main thread while
   draining completed futures, so a worker could start the next target before it
   flipped. Workers now set a `threading.Event` themselves.
@@ -93,7 +93,7 @@
   so techniques shared mutable state — before the fix only 6 of 25 shuffled
   technique orders were green. Targets are now `reset()` between techniques and
   a regression test enforces order-independence.
-- `praxis drift` refused to compare snapshots from two different targets, which
+- `marionette drift` refused to compare snapshots from two different targets, which
   previously reported every tool as added/removed — a silent wrong answer in
   the tool's headline feature. `Snapshot.load` now fails with typed errors.
 - Unbounded MCP frame reads: a 50MB reply was buffered and written to disk, and

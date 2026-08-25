@@ -8,11 +8,11 @@ import pytest
 from conftest import (TECH_DIR, broken_mcp_spec, enumerate_technique,
                       failing_technique, mock_spec, no_assertion_technique)
 
-engine = pytest.importorskip("praxis.engine")
+engine = pytest.importorskip("marionette.engine")
 
-from praxis.runner import ERROR, FAIL, PASS  # noqa: E402
-from praxis.targets.base import _REGISTRY  # noqa: E402
-from praxis.targets.mock import MockAgentTarget  # noqa: E402
+from marionette.runner import ERROR, FAIL, PASS  # noqa: E402
+from marionette.targets.base import _REGISTRY  # noqa: E402
+from marionette.targets.mock import MockAgentTarget  # noqa: E402
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def test_dead_target_is_contained_and_others_still_pass():
     by_name = {r.target_name: r for r in res.runs}
     dead = by_name["broken-mcp"]
     assert dead.error is not None
-    assert dead.error.get("code", "").startswith("PRX-E")
+    assert dead.error.get("code", "").startswith("MAR-E")
     assert [r.status for r in dead.results] == [ERROR]
 
     for name in ("alive-1", "alive-2"):
@@ -98,7 +98,7 @@ def test_fail_fast_false_runs_everything():
 
 
 def test_no_event_leakage_between_concurrent_targets():
-    techs = [enumerate_technique("PRX-9001"), enumerate_technique("PRX-9002")]
+    techs = [enumerate_technique("MAR-9001"), enumerate_technique("MAR-9002")]
     specs = [mock_spec(f"t{i}") for i in range(12)]
     res = engine.run_matrix(techs, specs, workers=8)
 
@@ -171,7 +171,7 @@ def test_techniques_are_order_independent():
     """
     import random
 
-    from praxis.technique import load_dir
+    from marionette.technique import load_dir
 
     techs = load_dir(TECH_DIR)
     for seed in range(8):
@@ -184,7 +184,7 @@ def test_techniques_are_order_independent():
 
 
 def test_reset_clears_target_state_between_techniques():
-    from praxis.targets import build
+    from marionette.targets import build
 
     t = build("mock")
     t.grant("read:secret")

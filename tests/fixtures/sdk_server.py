@@ -6,7 +6,7 @@ the protocol.  This one is driven by the SDK's own stdio server, so the frames
 on the wire are whatever the reference implementation actually emits.
 
 Run as ``python tests/fixtures/sdk_server.py`` (stdio transport).  Requires the
-dev-only ``mcp`` package; it is deliberately NOT a Praxis dependency.
+dev-only ``mcp`` package; it is deliberately NOT a Marionette dependency.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ try:                      # mcp >= 2.0
 except ModuleNotFoundError:   # mcp 1.x
     from mcp.server.fastmcp import FastMCP as _Server
 
-mcp = _Server("praxis-sdk-fixture")
+mcp = _Server("marionette-sdk-fixture")
 
 
 @mcp.tool()
@@ -42,7 +42,7 @@ def boom(reason: str = "requested") -> str:
 def main() -> None:
     # Lets the test suite verify the fixture imports under the installed SDK
     # without having to speak the protocol just to find out.
-    if "--praxis-import-check" in sys.argv[1:]:
+    if "--marionette-import-check" in sys.argv[1:]:
         return None
     mcp.run(transport="stdio")
 

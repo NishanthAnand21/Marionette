@@ -13,10 +13,10 @@ import textwrap
 
 import pytest
 
-from praxis import rules as R
-from praxis.cli import main
-from praxis.errors import ConfigError, PraxisError
-from praxis.schema import AgentEvent, write_jsonl
+from marionette import rules as R
+from marionette.cli import main
+from marionette.errors import ConfigError, MarionetteError
+from marionette.schema import AgentEvent, write_jsonl
 
 RULES_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), os.pardir, "rules"))
@@ -181,7 +181,7 @@ def test_forbidden_fields_are_rejected():
                 id: T-5
                 title: t
                 detection:
-                  selection: {{{banned}: PRX-0001}}
+                  selection: {{{banned}: MAR-0001}}
             """)
         assert banned in str(exc.value)
 
@@ -294,7 +294,7 @@ def pack():
 
 def test_shipped_pack_loads(pack):
     assert len(pack) >= 9
-    assert all(r.id.startswith("PRXR-") for r in pack)
+    assert all(r.id.startswith("MARR-") for r in pack)
 
 
 def test_every_shipped_rule_has_the_metadata_a_defender_needs(pack):
@@ -361,8 +361,8 @@ def test_end_to_end_rules_fire_on_technique_telemetry(pack, technique_events):
     silent = {r.id for r in pack} - fired
     assert not silent, f"rules that fired on nothing: {sorted(silent)}"
     # And the load-bearing ones specifically.
-    for expected in ("PRXR-0001", "PRXR-0002", "PRXR-0003", "PRXR-0005",
-                     "PRXR-0006", "PRXR-0007", "PRXR-0008", "PRXR-0010"):
+    for expected in ("MARR-0001", "MARR-0002", "MARR-0003", "MARR-0005",
+                     "MARR-0006", "MARR-0007", "MARR-0008", "MARR-0010"):
         assert expected in fired
 
 
@@ -371,18 +371,18 @@ def test_end_to_end_coverage_attribution(pack, technique_events):
     assert cov.rule_count == len(pack)
     # Derived, not hardcoded: this assertion has already rotted once as the
     # pack grew.
-    from praxis.technique import load_dir as _load_dir
+    from marionette.technique import load_dir as _load_dir
     n = len(_load_dir(os.path.join(os.path.dirname(__file__), os.pardir,
                                    "techniques")))
     assert len(cov.techniques) == n
-    # PRX-0005 is reconnaissance -- a bare tool-list enumeration that the pack
+    # MAR-0005 is reconnaissance -- a bare tool-list enumeration that the pack
     # deliberately does not claim to catch. Naming the blind spot is the point.
     uncovered = {t.technique_id for t in cov.uncovered}
-    assert uncovered == {"PRX-0005"}, uncovered
+    assert uncovered == {"MAR-0005"}, uncovered
     by_id = {t.technique_id: t for t in cov.techniques}
-    assert "PRXR-0001" in {m.rule_id for m in by_id["PRX-0001"].matches}
-    assert "PRXR-0002" in {m.rule_id for m in by_id["PRX-0002"].matches}
-    assert "PRXR-0010" in {m.rule_id for m in by_id["PRX-0025"].matches}
+    assert "MARR-0001" in {m.rule_id for m in by_id["MAR-0001"].matches}
+    assert "MARR-0002" in {m.rule_id for m in by_id["MAR-0002"].matches}
+    assert "MARR-0010" in {m.rule_id for m in by_id["MAR-0025"].matches}
     assert cov.silent_rules == []
 
 
@@ -396,13 +396,13 @@ def test_coverage_ignores_events_outside_any_technique(pack):
 def test_cli_rules_list(capsys):
     assert main(["rules", "list", "--no-color"]) == 0
     out = capsys.readouterr().out
-    assert "PRXR-0001" in out and "rules" in out
+    assert "MARR-0001" in out and "rules" in out
 
 
 def test_cli_rules_list_json(capsys):
     assert main(["rules", "list", "--json", "--no-color"]) == 0
     data = json.loads(capsys.readouterr().out)
-    assert {r["id"] for r in data} >= {"PRXR-0001", "PRXR-0005"}
+    assert {r["id"] for r in data} >= {"MARR-0001", "MARR-0005"}
     assert all(r["falsepositives"] for r in data)
 
 
@@ -430,7 +430,7 @@ def test_cli_rules_validate_reports_a_broken_rule(tmp_path, capsys):
         id: T-0101
         title: Broken
         detection:
-          selection: {technique_id: PRX-0001}
+          selection: {technique_id: MAR-0001}
     """)
     assert main(["rules", "validate", "--rules", str(tmp_path), "--no-color"]) == 1
     out = capsys.readouterr().out
@@ -455,7 +455,7 @@ def test_cli_rules_run_matches_exit_1(tmp_path, capsys):
                     tool_name="read_secret",
                     data={"kind": "planner_follow", "args": {}})], path)
     assert main(["rules", "run", "--events", path, "--no-color"]) == 1
-    assert "PRXR-0001" in capsys.readouterr().out
+    assert "MARR-0001" in capsys.readouterr().out
 
 
 def test_cli_rules_run_no_matches_exit_0(tmp_path, capsys):
@@ -469,21 +469,21 @@ def test_cli_rules_run_no_matches_exit_0(tmp_path, capsys):
 def test_cli_rules_run_json_and_coverage(tmp_path, capsys):
     path = str(tmp_path / "e.jsonl")
     write_jsonl([ev(type="agent.delegation", provenance="rag-retrieval",
-                    tool_name="http_post", technique_id="PRX-0011",
+                    tool_name="http_post", technique_id="MAR-0011",
                     data={"kind": "planner_follow", "args": {}})], path)
     assert main(["rules", "run", "--events", path, "--json", "--coverage",
                  "--no-color"]) == 1
     data = json.loads(capsys.readouterr().out)
     assert data["event_count"] == 1
-    assert "PRXR-0001" in {m["rule_id"] for m in data["matches"]}
+    assert "MARR-0001" in {m["rule_id"] for m in data["matches"]}
     assert data["coverage"]["technique_count"] == 1
-    assert "PRXR-0001" not in data["coverage"]["silent_rules"]
+    assert "MARR-0001" not in data["coverage"]["silent_rules"]
 
 
 def test_cli_rules_run_missing_events_file(tmp_path, capsys):
     assert main(["rules", "run", "--events", str(tmp_path / "nope.jsonl"),
                  "--no-color"]) == 2
-    assert "PRX-E3" in capsys.readouterr().err
+    assert "MAR-E3" in capsys.readouterr().err
 
 
 def test_cli_rules_without_subcommand_is_a_typed_error(capsys):
@@ -491,28 +491,28 @@ def test_cli_rules_without_subcommand_is_a_typed_error(capsys):
     assert "subcommand" in capsys.readouterr().err
 
 
-# --- `praxis run --events` ---------------------------------------------------
+# --- `marionette run --events` ---------------------------------------------------
 
 def test_run_events_flag_writes_a_loadable_stream(tmp_path, capsys):
     path = str(tmp_path / "e.jsonl")
-    assert main(["run", "--events", path, "--technique", "PRX-0001",
+    assert main(["run", "--events", path, "--technique", "MAR-0001",
                  "--no-color"]) in (0, 1)
     events = R.load_events(path)
     assert events and all(isinstance(e, AgentEvent) for e in events)
-    assert {e.type for e in events} >= {"praxis.technique.start",
+    assert {e.type for e in events} >= {"marionette.technique.start",
                                         "agent.tool.call"}
     assert "wrote" in capsys.readouterr().out
 
 
 def test_run_events_flag_reports_an_unwritable_path(capsys):
-    with pytest.raises(PraxisError):
+    with pytest.raises(MarionetteError):
         main(["run", "--events", "/nope/nope/e.jsonl", "--technique",
-              "PRX-0001", "--debug", "--no-color"])
+              "MAR-0001", "--debug", "--no-color"])
 
 
 def test_run_without_events_flag_writes_nothing(tmp_path, capsys):
     """The flag is additive: the default behaviour is unchanged."""
-    assert main(["run", "--technique", "PRX-0001", "--quiet",
+    assert main(["run", "--technique", "MAR-0001", "--quiet",
                  "--no-color"]) in (0, 1)
     assert not list(tmp_path.iterdir())
 
@@ -527,11 +527,11 @@ def test_no_shipped_rule_is_dead(tmp_path):
     import subprocess
     import sys
 
-    from praxis import rules as rules_mod
+    from marionette import rules as rules_mod
 
     events = tmp_path / "corpus.jsonl"
     root = os.path.join(os.path.dirname(__file__), os.pardir)
-    r = subprocess.run([sys.executable, "-m", "praxis.cli", "run",
+    r = subprocess.run([sys.executable, "-m", "marionette.cli", "run",
                         "--events", str(events)],
                        capture_output=True, text=True, cwd=root)
     assert r.returncode == 0, r.stdout + r.stderr

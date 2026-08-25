@@ -54,25 +54,25 @@ jobs:
       # Lint before running: a malformed technique should fail here with the
       # whole list of problems, not halfway through an execution.
       - name: lint the technique pack
-        run: praxis validate --targets-file targets.example.yaml
+        run: marionette validate --targets-file targets.example.yaml
 
       - name: unit tests
         run: pytest -q
 
       - name: rule pack must not contain a rule that can never fire
         run: |
-          praxis run --events /tmp/corpus.jsonl
-          praxis rules validate --against /tmp/corpus.jsonl
+          marionette run --events /tmp/corpus.jsonl
+          marionette rules validate --against /tmp/corpus.jsonl
 
-      # The end-to-end gate. `praxis run` already exits nonzero on a failure,
+      # The end-to-end gate. `marionette run` already exits nonzero on a failure,
       # but exit code alone cannot tell "everything passed" from "everything
       # skipped", so the counts are asserted explicitly.
       - name: run the pack against the built-in range
         run: |
-          praxis run --json praxis-results.json --junit praxis-results.xml
+          marionette run --json marionette-results.json --junit marionette-results.xml
           python - <<'PY'
           import json, sys
-          r = json.load(open("praxis-results.json"))
+          r = json.load(open("marionette-results.json"))
           t = r["totals"]
           print("totals:", t, "exit_code:", r["exit_code"])
           bad = {k: t.get(k, 0) for k in ("fail", "skip", "error")
@@ -89,21 +89,21 @@ jobs:
       # The techniques run against the real MCP adapter over stdio too, not
       # only the in-process mock: same adapter code path as a real server.
       - name: run against the bundled vulnerable MCP server
-        run: praxis run --targets-file targets.example.yaml --tag ci
+        run: marionette run --targets-file targets.example.yaml --tag ci
 
       - name: upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: praxis-results-py${{ matrix.python-version }}
+          name: marionette-results-py${{ matrix.python-version }}
           path: |
-            praxis-results.json
-            praxis-results.xml
+            marionette-results.json
+            marionette-results.xml
           if-no-files-found: ignore
 
   portability:
     # The ubuntu matrix above is the gate. This job answers a different
-    # question: does Praxis — which spawns subprocesses, drives pipes from
+    # question: does Marionette — which spawns subprocesses, drives pipes from
     # dedicated threads, and prints ANSI/Unicode — behave the same off Linux?
     # One Python version per OS keeps the bill sane; 3.12 is the version the
     # other single-OS jobs already use.
@@ -143,9 +143,9 @@ jobs:
         run: pip install mcp
 
       - name: lint the technique pack
-        run: praxis validate --targets-file targets.example.yaml
+        run: marionette validate --targets-file targets.example.yaml
 
-      # UTF-8 is forced because Praxis prints ✓/✗/→ and a redirected stdout on
+      # UTF-8 is forced because Marionette prints ✓/✗/→ and a redirected stdout on
       # Windows otherwise falls back to cp1252 and raises UnicodeEncodeError.
       # That is itself a portability defect; the env var keeps the rest of the
       # job meaningful instead of dying on the first status glyph.
@@ -165,17 +165,17 @@ jobs:
         env:
           PYTHONUTF8: "1"
         run: |
-          praxis run --events "$RUNNER_TEMP/corpus.jsonl" --quiet
-          praxis rules validate --against "$RUNNER_TEMP/corpus.jsonl"
-          praxis run --json "$RUNNER_TEMP/praxis-results.json" --quiet
+          marionette run --events "$RUNNER_TEMP/corpus.jsonl" --quiet
+          marionette rules validate --against "$RUNNER_TEMP/corpus.jsonl"
+          marionette run --json "$RUNNER_TEMP/marionette-results.json" --quiet
 
       # POSIX-only: targets.example.yaml launches its servers with shell-style
-      # command strings, which praxis splits with shlex (POSIX rules). Skipped
+      # command strings, which marionette splits with shlex (POSIX rules). Skipped
       # The example fleet quotes POSIX-style commands, so it stays POSIX-only.
-      # This is about the fixture's shell quoting, not a Praxis limitation.
+      # This is about the fixture's shell quoting, not a Marionette limitation.
       - name: run against the bundled vulnerable MCP server (POSIX only)
         if: runner.os != 'Windows'
-        run: praxis run --targets-file targets.example.yaml --tag ci
+        run: marionette run --targets-file targets.example.yaml --tag ci
 
   flake-check:
     # This project has shipped two real concurrency races (a fail_fast window
@@ -223,14 +223,14 @@ jobs:
       - name: repeat the pack
         run: |
           for i in 1 2 3 4 5; do
-            praxis run --quiet || exit 1
+            marionette run --quiet || exit 1
           done
 
   install:
-    # Guards the packaging contract: `praxis run` resolves its default
+    # Guards the packaging contract: `marionette run` resolves its default
     # technique directory relative to the installed package, so a
     # non-editable install must ship `techniques/` and `reference/` next to
-    # `praxis/`. Run from a directory that is not the repo, or the check
+    # `marionette/`. Run from a directory that is not the repo, or the check
     # passes for the wrong reason.
     name: non-editable install
     runs-on: ubuntu-latest
@@ -253,6 +253,6 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/elsewhere"
           cd "$RUNNER_TEMP/elsewhere"
-          praxis list
-          praxis validate
-          praxis run --quiet
+          marionette list
+          marionette validate
+          marionette run --quiet

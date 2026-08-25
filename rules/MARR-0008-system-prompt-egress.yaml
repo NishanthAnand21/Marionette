@@ -1,0 +1,29 @@
+id: MARR-0008
+title: Outbound tool call driven by the agent's own standing instructions
+status: stable
+level: critical
+description: >
+  An egress tool was invoked with provenance `system-prompt`: the agent sent
+  data outward because its standing instructions told it to, not because the
+  user did. Either the system prompt was tampered with -- persistence that
+  survives every turn -- or its contents are themselves being carried out of
+  the trust boundary. Both are the extraction shape, and neither is visible to
+  a rule that only inspects the payload of the outbound call.
+detection:
+  selection:
+    type: agent.tool.call
+    tool_name: [http_post, send_email, fetch_url, webhook, upload_file]
+    provenance: system-prompt
+  condition: selection
+covers: [MAR-0014, MAR-0020]
+atlas: [AML.T0056, AML.T0024.002]
+owasp: [ASI06, LLM02]
+falsepositives:
+  - >
+    A system prompt that legitimately instructs the agent to post results to a
+    fixed webhook produces exactly this event. Allowlist the destination host
+    rather than the provenance -- the provenance is the load-bearing part.
+  - >
+    Requires the producer to attribute planner actions back to the standing
+    prompt. Frameworks that label everything `user` will never fire this rule;
+    absence of hits here is not evidence of absence.

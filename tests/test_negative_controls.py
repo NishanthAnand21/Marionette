@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import pytest
 
-from praxis.runner import PASS, run_technique
-from praxis.targets import build
-from praxis.technique import load_dir
+from marionette.runner import PASS, run_technique
+from marionette.targets import build
+from marionette.technique import load_dir
 
 from conftest import TECH_DIR
 
@@ -30,9 +30,9 @@ from conftest import TECH_DIR
 # technique that does NOT discriminate, so the burden of proof is on the entry
 # and the list is kept as short as it can be defended.
 #
-# This list has only shrunk. PRX-0002 and PRX-0006 were tautologies and were
+# This list has only shrunk. MAR-0002 and MAR-0006 were tautologies and were
 # strengthened to assert on the poisoned description and the injected privileged
-# read. PRX-0008 was weak-by-construction until the hardened range grew a
+# read. MAR-0008 was weak-by-construction until the hardened range grew a
 # just-in-time authority defence, which gave it something real to refuse.
 EXPECTED_ON_BOTH = {
     # DISCOVERY. Enumerating the tool list is not itself a vulnerability: a
@@ -40,7 +40,7 @@ EXPECTED_ON_BOTH = {
     # establishes attack surface and seeds the drift snapshot, and it is
     # correct for it to succeed everywhere. This is the only entry that is a
     # legitimate pass rather than a recorded weakness.
-    "PRX-0005": "discovery — tool enumeration succeeds against any agent",
+    "MAR-0005": "discovery — tool enumeration succeeds against any agent",
 }
 
 

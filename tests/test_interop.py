@@ -5,7 +5,7 @@ against them is circular — our client talks to our own idea of the protocol.
 These tests drive a server built by the reference SDK, so the bytes on the
 wire are the reference implementation's, not ours.
 
-The SDK is a dev-only extra (deliberately not a Praxis dependency), so the
+The SDK is a dev-only extra (deliberately not a Marionette dependency), so the
 whole module skips cleanly when it is absent.
 """
 
@@ -20,7 +20,7 @@ import pytest
 
 pytest.importorskip("mcp", reason="official MCP SDK not installed (dev-only)")
 
-from praxis.targets.mcp import (PROTOCOL_VERSION, MCPTarget,  # noqa: E402
+from marionette.targets.mcp import (PROTOCOL_VERSION, MCPTarget,  # noqa: E402
                                 initialize_params)
 
 SERVER = os.path.join(os.path.dirname(__file__), "fixtures", "sdk_server.py")
@@ -34,7 +34,7 @@ def _sdk_importable() -> bool:
     but a future rename would leave it unimportable, and a hard failure here
     would be indistinguishable from an adapter bug.
     """
-    p = subprocess.run([sys.executable, SERVER, "--praxis-import-check"],
+    p = subprocess.run([sys.executable, SERVER, "--marionette-import-check"],
                        capture_output=True, input="", text=True, timeout=60)
     return p.returncode == 0
 
@@ -57,7 +57,7 @@ def sdk_target():
 # -- handshake ------------------------------------------------------------
 def test_initialize_negotiates_with_the_real_sdk(sdk_target):
     """Our hardcoded protocolVersion is still accepted by the SDK server."""
-    assert sdk_target.server_info.get("name") == "praxis-sdk-fixture"
+    assert sdk_target.server_info.get("name") == "marionette-sdk-fixture"
 
 
 def _raw_initialize(version: str) -> dict:
@@ -88,7 +88,7 @@ def test_unknown_version_is_silently_downgraded_not_rejected():
     """Documents real server behaviour the adapter currently ignores.
 
     An unrecognised client version does not produce a JSON-RPC error — the
-    server answers with a version of *its* choosing.  Praxis never reads the
+    server answers with a version of *its* choosing.  Marionette never reads the
     returned ``protocolVersion`` (``mcp.py`` keeps only ``serverInfo``), so a
     server answering in a protocol we did not ask for goes unnoticed.  This
     test pins the behaviour so a future adapter change is a deliberate one.
@@ -150,7 +150,7 @@ def test_health_round_trips_against_the_sdk(sdk_target):
 
 # -- CLI end-to-end -------------------------------------------------------
 def _cli(*args, cwd):
-    return subprocess.run([sys.executable, "-m", "praxis.cli", *args],
+    return subprocess.run([sys.executable, "-m", "marionette.cli", *args],
                           capture_output=True, text=True, cwd=cwd, timeout=300)
 
 

@@ -1,0 +1,30 @@
+id: MARR-0006
+title: Durable memory or retrieval corpus written from untrusted content
+status: stable
+level: high
+description: >
+  Something the agent read got written into a store that outlives the turn.
+  This is the persistence step of the injection kill chain: the payload stops
+  depending on the attacker being present, and every later session that
+  recalls the key or retrieves the document re-executes it. The write is the
+  cheap place to catch it -- by the time it is read back, provenance has
+  usually been laundered into "memory".
+detection:
+  selection:
+    type: agent.memory.write
+    kind: [memory, rag_index]
+  trusted:
+    provenance: [user, system, operator]
+  condition: selection and not trusted
+covers: [MAR-0004, MAR-0007, MAR-0011, MAR-0021, MAR-0024]
+atlas: [AML.T0070, AML.T0071]
+owasp: [ASI05, LLM04]
+falsepositives:
+  - >
+    Summarisation and caching agents write tool output to memory as their
+    entire purpose; so does any RAG ingestion job, which indexes untrusted
+    documents by definition. Scope this to memory namespaces the planner is
+    allowed to act on, and exclude the ingestion service's own principal.
+  - >
+    Absent provenance is treated as untrusted here, so a producer that simply
+    does not populate the field will fire on every write.

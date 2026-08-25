@@ -1,0 +1,32 @@
+id: MARR-0010
+title: Self-sustaining tool loop -- call budget exceeded
+status: stable
+level: medium
+description: >
+  The same tool was re-invoked repeatedly by the planner acting on tool output
+  rather than on the user. Each individual call is unremarkable -- a real tool,
+  well-formed arguments, a successful return -- which is exactly why per-call
+  policy passes every one of them. The finding exists only in the aggregate,
+  so this is a rate rule: the honest plan for a single task does not need the
+  same tool four times in a row on its own say-so.
+detection:
+  selection:
+    type: agent.delegation
+    kind: planner_follow
+    provenance: tool-output
+  condition: selection
+  group_by: tool_name
+  min_count: 4
+covers: [MAR-0025]
+atlas: [AML.T0034.002]
+owasp: [ASI02, ASI08, LLM10]
+falsepositives:
+  - >
+    Legitimate polling and pagination look identical: `poll_status` until
+    done, `list_page` until exhausted. Raise the threshold per tool, or exempt
+    tools whose contract is to be called until a terminal state.
+  - >
+    The threshold assumes one session per event stream. Evaluating a
+    concatenated multi-session file aggregates counts across sessions and will
+    over-fire; use `marionette rules run --coverage`, which evaluates per unit of
+    work, when the stream holds more than one.

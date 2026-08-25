@@ -1,6 +1,6 @@
 """Regressions for attacks a hostile target can mount on the operator.
 
-Praxis is pointed at servers that may be actively malicious. Each test here
+Marionette is pointed at servers that may be actively malicious. Each test here
 corresponds to a confirmed exploit, kept so the fix cannot quietly rot.
 """
 
@@ -11,10 +11,10 @@ import os
 import pytest
 import xml.etree.ElementTree as ET
 
-from praxis import report
-from praxis.drift import Snapshot, diff
-from praxis.targets.base import ToolSpec
-from praxis.targets.mcp import MCPTarget
+from marionette import report
+from marionette.drift import Snapshot, diff
+from marionette.targets.base import ToolSpec
+from marionette.targets.mcp import MCPTarget
 
 
 def test_request_ids_are_unguessable():
@@ -24,7 +24,7 @@ def test_request_ids_are_unguessable():
     as the result of its next call, letting the server forge a tool inventory.
     """
     t = MCPTarget(name="x", command="true")
-    ids = {f"prx-{__import__('secrets').token_hex(8)}" for _ in range(100)}
+    ids = {f"mar-{__import__('secrets').token_hex(8)}" for _ in range(100)}
     assert len(ids) == 100                      # no collisions
     assert not any(i.endswith(("-1", "-2")) for i in ids)
     assert t._outstanding == set()              # nothing outstanding before use
@@ -46,7 +46,7 @@ def test_junit_survives_xml_illegal_codepoints():
     """One NUL made the whole artifact unparseable.
 
     A CI server that cannot parse the report shows "no test results" — the run
-    goes green by absence, hiding the findings Praxis produced.
+    goes green by absence, hiding the findings Marionette produced.
     """
     class A:
         passed = False; name = "evil\x00\x1b[31m\x07"; count = None
@@ -73,35 +73,35 @@ def test_junit_survives_xml_illegal_codepoints():
 
 def test_hostile_server_does_not_inherit_operator_secrets():
     """The subprocess under test must not receive ambient credentials."""
-    os.environ["PRAXIS_TEST_FAKE_TOKEN"] = "super-secret"
+    os.environ["MARIONETTE_TEST_FAKE_TOKEN"] = "super-secret"
     try:
         env = MCPTarget._build_env(None, inherit_env=False)
-        assert "PRAXIS_TEST_FAKE_TOKEN" not in env
+        assert "MARIONETTE_TEST_FAKE_TOKEN" not in env
         assert "PATH" in env                     # still launchable
         opted_in = MCPTarget._build_env(None, inherit_env=True)
-        assert opted_in.get("PRAXIS_TEST_FAKE_TOKEN") == "super-secret"
+        assert opted_in.get("MARIONETTE_TEST_FAKE_TOKEN") == "super-secret"
         explicit = MCPTarget._build_env({"NEEDED": "1"}, inherit_env=False)
         assert explicit["NEEDED"] == "1"
     finally:
-        del os.environ["PRAXIS_TEST_FAKE_TOKEN"]
+        del os.environ["MARIONETTE_TEST_FAKE_TOKEN"]
 
 
 def test_drift_refuses_snapshots_from_different_targets():
     """Diffing two servers reported every tool as changed — a silent lie."""
-    from praxis.errors import PraxisError
+    from marionette.errors import MarionetteError
 
     a = Snapshot.capture("server-a", [ToolSpec("x", "d")])
     b = Snapshot.capture("server-b", [ToolSpec("y", "d")])
     try:
         diff(a, b)
         raise AssertionError("cross-target diff was permitted")
-    except PraxisError as exc:
+    except MarionetteError as exc:
         assert "different targets" in str(exc)
     assert diff(a, b, allow_cross_target=True)   # explicit opt-in still works
 
 
 def test_target_name_cannot_contain_a_path_separator():
-    from praxis.config import TargetSpec
+    from marionette.config import TargetSpec
 
     spec = TargetSpec(name="../../etc/evil", kind="mock")
     assert any("path separator" in p for p in spec.validate())
@@ -114,7 +114,7 @@ def test_shipped_example_fleet_is_valid():
     README. A broken one passed the entire suite once, because nothing loaded
     it — an edit to a comment silently corrupted the document.
     """
-    from praxis.config import Fleet
+    from marionette.config import Fleet
 
     root = os.path.join(os.path.dirname(__file__), os.pardir)
     fleet = Fleet.load(os.path.join(root, "targets.example.yaml"))
@@ -145,7 +145,7 @@ def test_report_artifacts_are_lf_only(tmp_path):
     root = os.path.join(os.path.dirname(__file__), os.pardir)
     js, xml, ev = (tmp_path / n for n in ("r.json", "j.xml", "e.jsonl"))
     r = subprocess.run(
-        [sys.executable, "-m", "praxis.cli", "run",
+        [sys.executable, "-m", "marionette.cli", "run",
          "--json", str(js), "--junit", str(xml), "--events", str(ev)],
         capture_output=True, text=True, cwd=root)
     assert r.returncode == 0, r.stdout + r.stderr
@@ -156,8 +156,8 @@ def test_report_artifacts_are_lf_only(tmp_path):
 
 
 def test_snapshot_is_lf_only(tmp_path):
-    from praxis.drift import Snapshot
-    from praxis.targets.base import ToolSpec
+    from marionette.drift import Snapshot
+    from marionette.targets.base import ToolSpec
 
     out = tmp_path / "s.json"
     Snapshot.capture("t", [ToolSpec("a", "d")]).save(str(out))
@@ -166,7 +166,7 @@ def test_snapshot_is_lf_only(tmp_path):
 
 def test_windows_command_strings_are_not_mangled():
     """POSIX shlex eats backslashes, silently corrupting Windows paths."""
-    from praxis.targets.mcp import _split_command
+    from marionette.targets.mcp import _split_command
 
     parts = _split_command(r'C:\Users\me\python.exe server.py')
     if os.name == "nt":
@@ -179,7 +179,7 @@ def test_windows_command_strings_are_not_mangled():
 
 def test_env_allowlist_matches_case_insensitively():
     """os.environ upper-cases keys on Windows, so mixed-case entries never hit."""
-    from praxis.targets.mcp import MCPTarget
+    from marionette.targets.mcp import MCPTarget
 
     assert "SYSTEMROOT" in MCPTarget._ENV_ALLOWLIST
     assert all(k == k.upper() for k in MCPTarget._ENV_ALLOWLIST), \
@@ -188,7 +188,7 @@ def test_env_allowlist_matches_case_insensitively():
 
 def test_status_glyphs_fall_back_to_ascii_on_narrow_encodings():
     """A redirected stdout on Windows is cp1252; the tick raises there."""
-    from praxis import report
+    from marionette import report
 
     assert set("".join(report._ASCII_GLYPH.values())).issubset(
         set(chr(c) for c in range(128))), "fallback glyphs must be ASCII"
@@ -208,7 +208,7 @@ def test_wedged_server_is_reaped_within_the_shutdown_budget(tmp_path):
         "except Exception: pass\n"
         "for line in sys.stdin: pass\n"
         "while True: time.sleep(1)\n")
-    from praxis.targets import build
+    from marionette.targets import build
 
     t = build("mcp", name="s", command=f"{sys.executable} {script}", timeout=1)
     try:

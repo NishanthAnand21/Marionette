@@ -1,14 +1,14 @@
-# Praxis fleet definition — the set of targets one `praxis run` covers.
+# Marionette fleet definition — the set of targets one `marionette run` covers.
 #
-#   praxis run --targets-file targets.example.yaml
-#   praxis run --targets-file targets.example.yaml --tag prod
-#   praxis targets --targets-file targets.example.yaml
+#   marionette run --targets-file targets.example.yaml
+#   marionette run --targets-file targets.example.yaml --tag prod
+#   marionette targets --targets-file targets.example.yaml
 #
 # Every key under `defaults:` is merged into each entry, with the entry
 # winning. Keep secrets out of this file — use env interpolation in your
 # shell or a secrets manager and pass them through `env:`.
 
-# Targets do NOT inherit your environment: Praxis spawns servers it is testing
+# Targets do NOT inherit your environment: Marionette spawns servers it is testing
 # for hostility, and handing them AWS_SECRET_ACCESS_KEY / GITHUB_TOKEN is not a
 # reasonable default. Put anything a server legitimately needs in its `env:`,
 # or set `inherit_env: true` on that target to opt back in.
@@ -29,7 +29,7 @@ targets:
   # This is the honest end-to-end path: same adapter code as a real server.
   - name: vulnerable-mcp
     kind: mcp
-    command: "python3 -m praxis.range.vulnerable_mcp_server"
+    command: "python3 -m marionette.range.vulnerable_mcp_server"
     cwd: "."
     tags: [ci, mcp, vulnerable]
     timeout: 30

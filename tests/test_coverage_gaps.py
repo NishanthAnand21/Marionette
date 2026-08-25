@@ -2,13 +2,13 @@
 
 Focus, in order of how badly they were under-covered:
 
-* ``praxis/report.py``   — 40% before this file; the JSON/JUnit renderers that
+* ``marionette/report.py``   — 40% before this file; the JSON/JUnit renderers that
   CI actually consumes were entirely untested.
-* ``praxis/errors.py``   — render()/to_dict() round-trip for every class.
-* ``praxis/telemetry.py``— the ``max_events`` retention floor and subscribers.
-* ``praxis/drift``       — snapshot load error paths, rename-vs-mutate, unicode.
-* ``praxis/config.py``   — defaults merge, selection, unknown keys.
-* ``praxis/runner.py``   — status precedence and the no-assertions rule.
+* ``marionette/errors.py``   — render()/to_dict() round-trip for every class.
+* ``marionette/telemetry.py``— the ``max_events`` retention floor and subscribers.
+* ``marionette/drift``       — snapshot load error paths, rename-vs-mutate, unicode.
+* ``marionette/config.py``   — defaults merge, selection, unknown keys.
+* ``marionette/runner.py``   — status precedence and the no-assertions rule.
 """
 
 from __future__ import annotations
@@ -18,18 +18,18 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from praxis import errors as E
-from praxis import report
-from praxis.config import Fleet, TargetSpec
-from praxis.detection import AssertionResult
-from praxis.drift.monitor import (ADDED, DESC_CHANGED, REMOVED, SCHEMA_CHANGED,
+from marionette import errors as E
+from marionette import report
+from marionette.config import Fleet, TargetSpec
+from marionette.detection import AssertionResult
+from marionette.drift.monitor import (ADDED, DESC_CHANGED, REMOVED, SCHEMA_CHANGED,
                                   Snapshot, diff)
-from praxis.engine import MatrixResult, TargetRunResult
-from praxis.runner import TechniqueResult, run_technique
-from praxis.schema import AgentEvent, TOOL_LIST
-from praxis.targets import build
-from praxis.targets.base import ToolSpec
-from praxis.telemetry import Collector
+from marionette.engine import MatrixResult, TargetRunResult
+from marionette.runner import TechniqueResult, run_technique
+from marionette.schema import AgentEvent, TOOL_LIST
+from marionette.targets import build
+from marionette.targets.base import ToolSpec
+from marionette.telemetry import Collector
 
 from conftest import (enumerate_technique, failing_technique,
                       no_assertion_technique, write_yaml)
@@ -37,7 +37,7 @@ from conftest import (enumerate_technique, failing_technique,
 
 # --- builders ----------------------------------------------------------------
 
-def _res(tid="PRX-0001", status="pass", **kw):
+def _res(tid="MAR-0001", status="pass", **kw):
     kw.setdefault("name", f"technique {tid}")
     kw.setdefault("duration_ms", 12.0)
     return TechniqueResult(
@@ -67,11 +67,11 @@ def _run(name="range", kind="mock", results=(), error=None, duration_ms=500.0):
 
 def test_junit_is_wellformed_and_carries_totals():
     m = _matrix(_run(results=[
-        _res("PRX-0001", "pass"),
-        _res("PRX-0002", "fail", assertions=[_assertion("no exfil", count=0)]),
-        _res("PRX-0003", "skip", skipped_reason="target lacks memory"),
-        _res("PRX-0004", "error", error="boom",
-             error_detail={"code": "PRX-E203", "message": "boom",
+        _res("MAR-0001", "pass"),
+        _res("MAR-0002", "fail", assertions=[_assertion("no exfil", count=0)]),
+        _res("MAR-0003", "skip", skipped_reason="target lacks memory"),
+        _res("MAR-0004", "error", error="boom",
+             error_detail={"code": "MAR-E203", "message": "boom",
                            "hint": "check args", "context": {}}),
     ]))
     root = ET.fromstring(report.render_junit(m))
@@ -90,20 +90,20 @@ def test_junit_is_wellformed_and_carries_totals():
     assert suite.get("time") == "0.500"
     cases = suite.findall("testcase")
     assert [c.get("name") for c in cases] == [
-        f"PRX-000{i} technique PRX-000{i}" for i in (1, 2, 3, 4)]
-    assert all(c.get("classname") == "praxis.range" for c in cases)
+        f"MAR-000{i} technique MAR-000{i}" for i in (1, 2, 3, 4)]
+    assert all(c.get("classname") == "marionette.range" for c in cases)
     assert cases[0].get("time") == "0.012"
 
 
 def test_junit_element_kinds_match_status():
     m = _matrix(_run(results=[
-        _res("PRX-0001", "pass"),
-        _res("PRX-0002", "fail", assertions=[
+        _res("MAR-0001", "pass"),
+        _res("MAR-0002", "fail", assertions=[
             _assertion("first", passed=False, count=0, min_count=2),
             _assertion("second", passed=True, count=9)]),
-        _res("PRX-0003", "skip", skipped_reason="not applicable here"),
-        _res("PRX-0004", "error",
-             error_detail={"code": "PRX-E102", "message": "timed out",
+        _res("MAR-0003", "skip", skipped_reason="not applicable here"),
+        _res("MAR-0004", "error",
+             error_detail={"code": "MAR-E102", "message": "timed out",
                            "hint": "raise timeout"}),
     ]))
     cases = ET.fromstring(report.render_junit(m)).findall(".//testcase")
@@ -121,14 +121,14 @@ def test_junit_element_kinds_match_status():
     assert skipped.get("message") == "not applicable here"
 
     err = cases[3].find("error")
-    assert err.get("type") == "PRX-E102"
+    assert err.get("type") == "MAR-E102"
     assert err.get("message") == "timed out"
     assert err.text == "raise timeout"
 
 
 def test_junit_target_setup_failure_becomes_one_synthetic_case():
     m = _matrix(_run(name="prod-mail", kind="mcp", error={
-        "code": "PRX-E101", "message": "could not launch server",
+        "code": "MAR-E101", "message": "could not launch server",
         "hint": "check PATH", "context": {"command": "x"}}))
     suite = ET.fromstring(report.render_junit(m)).find("testsuite")
     assert suite.get("tests") == "1"
@@ -136,21 +136,21 @@ def test_junit_target_setup_failure_becomes_one_synthetic_case():
     cases = suite.findall("testcase")
     assert len(cases) == 1
     assert cases[0].get("name") == "target-setup"
-    assert cases[0].find("error").get("type") == "PRX-E101"
+    assert cases[0].find("error").get("type") == "MAR-E101"
     assert cases[0].find("error").get("message") == "could not launch server"
 
 
 def test_junit_tolerates_partially_populated_results():
     """A result with no error_detail, no assertions and no hint still renders."""
     m = _matrix(_run(results=[
-        _res("PRX-0001", "error", error="raw string only"),
-        _res("PRX-0002", "fail"),                       # no assertions at all
-        _res("PRX-0003", "skip"),                       # no skipped_reason
+        _res("MAR-0001", "error", error="raw string only"),
+        _res("MAR-0002", "fail"),                       # no assertions at all
+        _res("MAR-0003", "skip"),                       # no skipped_reason
     ]))
     xml = report.render_junit(m)
     cases = ET.fromstring(xml).findall(".//testcase")
     err = cases[0].find("error")
-    assert err.get("type") == "PRX-E000"      # default code
+    assert err.get("type") == "MAR-E000"      # default code
     assert err.get("message") == "raw string only"
     assert not err.text          # no hint -> empty element
     assert cases[2].find("skipped").get("message") == "skipped"
@@ -163,18 +163,18 @@ def test_junit_fail_with_no_assertions_and_no_error_has_a_real_message():
     `getattr(res, "error", "assertions failed")` never reached its default and
     CI displayed a failure whose stated reason was the literal string "None".
     """
-    m = _matrix(_run(results=[_res("PRX-0002", "fail")]))
+    m = _matrix(_run(results=[_res("MAR-0002", "fail")]))
     assert ET.fromstring(report.render_junit(m)) \
         .find(".//failure").get("message") == "assertions failed"
 
-    m = _matrix(_run(results=[_res("PRX-0003", "error")]))
+    m = _matrix(_run(results=[_res("MAR-0003", "error")]))
     assert ET.fromstring(report.render_junit(m)) \
         .find(".//error").get("message") == "error"
 
 
 def test_junit_escapes_xml_metacharacters():
     m = _matrix(_run(name="a&b", results=[
-        _res("PRX-0001", "fail",
+        _res("MAR-0001", "fail",
              assertions=[_assertion('<script>"x" & y</script>')])]))
     xml = report.render_junit(m)
     assert "<script>" not in xml
@@ -191,8 +191,8 @@ def test_junit_empty_matrix_still_valid():
 
 def test_junit_multiple_suites_are_independent():
     m = _matrix(
-        _run("a", results=[_res("PRX-0001", "pass")]),
-        _run("b", kind="mcp", results=[_res("PRX-0001", "fail",
+        _run("a", results=[_res("MAR-0001", "pass")]),
+        _run("b", kind="mcp", results=[_res("MAR-0001", "fail",
                                             assertions=[_assertion("x")])]),
     )
     suites = ET.fromstring(report.render_junit(m)).findall("testsuite")
@@ -207,8 +207,8 @@ def test_junit_multiple_suites_are_independent():
 
 def test_render_json_round_trips_and_keeps_exit_code():
     m = _matrix(_run(results=[
-        _res("PRX-0001", "pass"),
-        _res("PRX-0002", "fail", assertions=[_assertion("nope")])]))
+        _res("MAR-0001", "pass"),
+        _res("MAR-0002", "fail", assertions=[_assertion("nope")])]))
     data = json.loads(report.render_json(m))
     assert data["run_id"] == "deadbeef"
     assert data["totals"] == {"pass": 1, "fail": 1, "skip": 0, "error": 0}
@@ -225,8 +225,8 @@ def test_render_json_is_indented_and_serialises_unknown_types():
         def __repr__(self):
             return "<weird>"
 
-    m = _matrix(_run(results=[_res("PRX-0001", "error",
-                                   error_detail={"code": "PRX-E000",
+    m = _matrix(_run(results=[_res("MAR-0001", "error",
+                                   error_detail={"code": "MAR-E000",
                                                  "context": {"o": Weird()}})]))
     text = report.render_json(m)
     assert "\n  " in text                       # indent=2
@@ -240,7 +240,7 @@ def test_exit_code_precedence_error_beats_fail():
     assert _matrix(_run(results=[_res(status="fail"),
                                  _res(status="error")])).exit_code == 2
     # a target-level error counts even with zero technique results
-    assert _matrix(_run(error={"code": "PRX-E101"})).exit_code == 2
+    assert _matrix(_run(error={"code": "MAR-E101"})).exit_code == 2
     assert _matrix(_run(results=[_res(status="skip")])).exit_code == 0
 
 
@@ -250,12 +250,12 @@ def test_exit_code_precedence_error_beats_fail():
 
 def test_render_text_shows_every_status_and_reasons():
     m = _matrix(_run(results=[
-        _res("PRX-0001", "pass"),
-        _res("PRX-0002", "fail", assertions=[
+        _res("MAR-0001", "pass"),
+        _res("MAR-0002", "fail", assertions=[
             _assertion("exfil blocked", count=3, min_count=1)]),
-        _res("PRX-0003", "skip", skipped_reason="target lacks memory"),
-        _res("PRX-0004", "error",
-             error_detail={"code": "PRX-E203", "message": "bad arg",
+        _res("MAR-0003", "skip", skipped_reason="target lacks memory"),
+        _res("MAR-0004", "error",
+             error_detail={"code": "MAR-E203", "message": "bad arg",
                            "hint": "fix it", "context": {"tool": "send"}}),
     ]))
     out = report.render_text(m, color=False)
@@ -264,7 +264,7 @@ def test_render_text_shows_every_status_and_reasons():
     assert "target lacks memory" in out
     assert "assertion failed: exfil blocked" in out
     assert "expected >=1, observed 3" in out
-    assert "[PRX-E203] bad arg" in out
+    assert "[MAR-E203] bad arg" in out
     assert "hint: fix it" in out
     assert "context: tool='send'" in out
     assert "1 passed, 1 failed, 1 skipped, 1 errored" in out
@@ -272,10 +272,10 @@ def test_render_text_shows_every_status_and_reasons():
 
 def test_render_text_target_error_block_and_no_summary_for_one_target():
     m = _matrix(_run(name="prod", kind="mcp", error={
-        "code": "PRX-E101", "message": "no such command", "hint": "check PATH"}))
+        "code": "MAR-E101", "message": "no such command", "hint": "check PATH"}))
     out = report.render_text(m, color=False)
     assert "prod (mcp)" in out
-    assert "[PRX-E101] no such command" in out
+    assert "[MAR-E101] no such command" in out
     assert "summary" not in out          # single target: no matrix grid
 
 
@@ -289,7 +289,7 @@ def test_render_text_multi_target_prints_summary_grid():
 
 
 def test_render_text_verbose_lists_passing_assertions():
-    m = _matrix(_run(results=[_res("PRX-0001", "pass", event_count=4,
+    m = _matrix(_run(results=[_res("MAR-0001", "pass", event_count=4,
                                    assertions=[_assertion("ok one", True, 2)])]))
     quiet = report.render_text(m, color=False)
     verbose = report.render_text(m, color=False, verbose=True)
@@ -299,7 +299,7 @@ def test_render_text_verbose_lists_passing_assertions():
 
 
 def test_render_text_fail_without_assertions_falls_back_to_error_string():
-    m = _matrix(_run(results=[_res("PRX-0001", "fail", error="something odd")]))
+    m = _matrix(_run(results=[_res("MAR-0001", "fail", error="something odd")]))
     assert "something odd" in report.render_text(m, color=False)
 
 
@@ -368,7 +368,7 @@ def test_color_output_actually_contains_ansi():
 # =============================================================================
 
 ALL_ERRORS = [
-    E.PraxisError, E.TargetError, E.TargetConnectError, E.TargetTimeoutError,
+    E.MarionetteError, E.TargetError, E.TargetConnectError, E.TargetTimeoutError,
     E.TargetProtocolError, E.TargetCrashedError, E.UnsupportedCapability,
     E.TechniqueError, E.TechniqueParseError, E.TechniqueValidationError,
     E.StepExecutionError, E.ConfigError, E.ConfigParseError, E.UnknownTargetKind,
@@ -378,7 +378,7 @@ ALL_ERRORS = [
 @pytest.mark.parametrize("cls", ALL_ERRORS, ids=lambda c: c.__name__)
 def test_every_error_class_has_a_unique_renderable_code(cls):
     exc = cls("something went wrong")
-    assert exc.code.startswith("PRX-E")
+    assert exc.code.startswith("MAR-E")
     rendered = exc.render()
     assert rendered.startswith(f"[{exc.code}] something went wrong")
     d = exc.to_dict()
@@ -409,16 +409,16 @@ def test_explicit_hint_overrides_class_default():
 
 
 def test_render_color_wraps_only_the_code():
-    out = E.PraxisError("m").render(color=True)
-    assert out.startswith("\033[31m[PRX-E000]\033[0m m")
-    assert "\033[" not in E.PraxisError("m").render(color=False)
+    out = E.MarionetteError("m").render(color=True)
+    assert out.startswith("\033[31m[MAR-E000]\033[0m m")
+    assert "\033[" not in E.MarionetteError("m").render(color=False)
 
 
 def test_to_dict_round_trips_into_the_report_error_block():
     exc = E.TargetCrashedError("server died", context={"rc": 1})
     lines = report._error_block(
         report._ErrShim(exc.to_dict()), "", color=False)
-    assert "[PRX-E104] server died" in lines[0]
+    assert "[MAR-E104] server died" in lines[0]
     assert "hint:" in lines[1]
     assert "rc=1" in lines[2]
 
@@ -428,7 +428,7 @@ def test_error_hierarchy_is_catchable_by_family():
     assert issubclass(E.UnknownTargetKind, E.ConfigError)
     assert issubclass(E.StepExecutionError, E.TechniqueError)
     for cls in ALL_ERRORS:
-        assert issubclass(cls, E.PraxisError)
+        assert issubclass(cls, E.MarionetteError)
 
 
 # =============================================================================
@@ -452,9 +452,9 @@ def test_subscribers_see_every_event_and_are_additive():
 
 def test_emit_stamps_run_id_and_bound_technique():
     col = Collector(run_id="r1")
-    col.bind_technique("PRX-0001")
+    col.bind_technique("MAR-0001")
     ev = col.emit(_ev())
-    assert ev.run_id == "r1" and ev.technique_id == "PRX-0001"
+    assert ev.run_id == "r1" and ev.technique_id == "MAR-0001"
     col.bind_technique(None)
     assert col.emit(_ev()).technique_id is None
 
@@ -462,9 +462,9 @@ def test_emit_stamps_run_id_and_bound_technique():
 def test_emit_does_not_overwrite_an_explicit_run_id():
     col = Collector(run_id="r1")
     ev = AgentEvent(type=TOOL_LIST, target="t", run_id="preset",
-                    technique_id="PRX-9999")
+                    technique_id="MAR-9999")
     col.emit(ev)
-    assert ev.run_id == "preset" and ev.technique_id == "PRX-9999"
+    assert ev.run_id == "preset" and ev.technique_id == "MAR-9999"
 
 
 def test_mark_and_since_bound_a_window():
@@ -857,7 +857,7 @@ def test_missing_capability_skips_before_execution(mock_target):
 def test_a_step_exception_is_an_error_that_outranks_assertions(mock_target):
     """A malformed step arg raises out of _dispatch; error beats a green
     assertion that had already been satisfied by an earlier step."""
-    from praxis.technique import Step
+    from marionette.technique import Step
 
     tech = enumerate_technique()
     # `call_tool` requires an args["tool"] key; omitting it raises KeyError
@@ -868,13 +868,13 @@ def test_a_step_exception_is_an_error_that_outranks_assertions(mock_target):
     assert res.error
     # the list_tools assertion *did* pass, and error still wins
     assert res.assertions and res.assertions[0].passed
-    assert res.error_detail is None      # KeyError is not a PraxisError
+    assert res.error_detail is None      # KeyError is not a MarionetteError
 
 
 def test_an_unknown_tool_is_a_tool_error_not_a_run_error(mock_target):
     """Documents the boundary: the mock reports an unknown tool as a failed
     ToolResult, so the technique still evaluates its assertions normally."""
-    from praxis.technique import Step
+    from marionette.technique import Step
 
     tech = enumerate_technique()
     tech.steps = [Step("list_tools"), Step("call_tool", {"tool": "no_such"})]
@@ -884,8 +884,8 @@ def test_an_unknown_tool_is_a_tool_error_not_a_run_error(mock_target):
 
 
 def test_error_detail_is_populated_only_for_typed_errors(mock_target):
-    from praxis.errors import StepExecutionError
-    from praxis.technique import Step
+    from marionette.errors import StepExecutionError
+    from marionette.technique import Step
 
     class Boom:
         def __init__(self, exc):
@@ -904,7 +904,7 @@ def test_error_detail_is_populated_only_for_typed_errors(mock_target):
     typed = run_technique(tech, mock_target)
     assert typed.status == "error"
     assert typed.error_detail == {
-        "code": "PRX-E203", "message": "typed boom",
+        "code": "MAR-E203", "message": "typed boom",
         "hint": StepExecutionError.default_hint, "context": {"step": 0}}
 
     mock_target.list_tools = raise_plain
@@ -915,8 +915,8 @@ def test_error_detail_is_populated_only_for_typed_errors(mock_target):
 
 
 def test_unsupported_capability_raised_midrun_is_a_skip(mock_target):
-    from praxis.targets.base import UnsupportedCapability
-    from praxis.technique import Step
+    from marionette.targets.base import UnsupportedCapability
+    from marionette.technique import Step
 
     tech = enumerate_technique()
     tech.steps = [Step("list_tools")]
@@ -930,7 +930,7 @@ def test_unsupported_capability_raised_midrun_is_a_skip(mock_target):
     assert res.status == "skip"
     assert res.executed is False and res.passed is False
     assert "cannot do that" in res.skipped_reason
-    assert res.error_detail["code"] == "PRX-E105"
+    assert res.error_detail["code"] == "MAR-E105"
 
 
 def test_run_id_is_threaded_onto_events(mock_target):
@@ -943,7 +943,7 @@ def test_run_id_is_threaded_onto_events(mock_target):
 
 
 def test_technique_binding_is_cleared_after_the_run(mock_target):
-    run_technique(enumerate_technique("PRX-9001"), mock_target)
+    run_technique(enumerate_technique("MAR-9001"), mock_target)
     stray = mock_target.collector.emit(
         AgentEvent(type=TOOL_LIST, target="range"))
     assert stray.technique_id is None
@@ -958,8 +958,8 @@ def test_assertion_window_is_bounded_to_this_technique(mock_target):
 
 
 def test_technique_result_to_dict_is_json_safe():
-    res = _res("PRX-0002", "fail", assertions=[_assertion("a")],
-               error="x", error_detail={"code": "PRX-E000"}, event_count=3)
+    res = _res("MAR-0002", "fail", assertions=[_assertion("a")],
+               error="x", error_detail={"code": "MAR-E000"}, event_count=3)
     d = res.to_dict()
     assert d["status"] == "fail"
     assert d["duration_ms"] == 12.0

@@ -1,6 +1,6 @@
 """A stdlib HTTP stub that answers (or deliberately mis-answers) MCP JSON-RPC.
 
-Used by tests/test_adapters.py to exercise praxis.targets.http against a server
+Used by tests/test_adapters.py to exercise marionette.targets.http against a server
 whose every behaviour we control: correct replies, non-200 status, malformed
 bodies, SSE framing, and responses slower than the client's timeout.
 
@@ -119,7 +119,7 @@ def stub_server(mode: str = "ok", delay: float = 0.0):
     srv.daemon_threads = True
     port = srv.server_address[1]
     thread = threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.01},
-                              daemon=True, name="praxis-http-stub")
+                              daemon=True, name="marionette-http-stub")
     thread.start()
     try:
         yield f"http://127.0.0.1:{port}/mcp"

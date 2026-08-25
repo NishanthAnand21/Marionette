@@ -1,14 +1,14 @@
-"""Shared fixtures + YAML helpers for the Praxis test suite."""
+"""Shared fixtures + YAML helpers for the Marionette test suite."""
 
 import os
 import textwrap
 
 import pytest
 
-from praxis.config import TargetSpec
-from praxis.detection import Assertion
-from praxis.schema import TOOL_LIST
-from praxis.technique import Step, Technique
+from marionette.config import TargetSpec
+from marionette.detection import Assertion
+from marionette.schema import TOOL_LIST
+from marionette.technique import Step, Technique
 
 TECH_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), os.pardir, "techniques"))
@@ -23,7 +23,7 @@ def write_yaml(tmp_path, name, body):
 
 # A minimal technique that is valid on every axis the validator checks.
 GOOD_TECHNIQUE = textwrap.dedent("""
-    id: PRX-9001
+    id: MAR-9001
     name: Fixture Technique
     tactic: discovery
     atlas: [AML.T0007]
@@ -41,7 +41,7 @@ GOOD_TECHNIQUE = textwrap.dedent("""
 """)
 
 
-def enumerate_technique(tid="PRX-9001"):
+def enumerate_technique(tid="MAR-9001"):
     """The programmatic twin of GOOD_TECHNIQUE — one step, one assertion."""
     return Technique(
         id=tid, name="Fixture Technique", tactic="discovery",
@@ -51,7 +51,7 @@ def enumerate_technique(tid="PRX-9001"):
     )
 
 
-def failing_technique(tid="PRX-9002"):
+def failing_technique(tid="MAR-9002"):
     """Executes fine, but asserts something that never happens."""
     t = enumerate_technique(tid)
     t.name = "Always Fails"
@@ -60,7 +60,7 @@ def failing_technique(tid="PRX-9002"):
     return t
 
 
-def no_assertion_technique(tid="PRX-9003"):
+def no_assertion_technique(tid="MAR-9003"):
     t = enumerate_technique(tid)
     t.name = "Asserts Nothing"
     t.assertions = []
@@ -74,9 +74,9 @@ def mock_spec(name):
 def broken_mcp_spec(name="broken-mcp"):
     """kind=mcp pointing at a command that cannot possibly launch."""
     return TargetSpec(name=name, kind="mcp",
-                      command="praxis-no-such-binary-xyz --stdio", timeout=2.0)
+                      command="marionette-no-such-binary-xyz --stdio", timeout=2.0)
 
 
 @pytest.fixture
 def good_technique_yaml(tmp_path):
-    return write_yaml(tmp_path, "PRX-9001-good.yaml", GOOD_TECHNIQUE)
+    return write_yaml(tmp_path, "MAR-9001-good.yaml", GOOD_TECHNIQUE)

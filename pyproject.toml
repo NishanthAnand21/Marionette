@@ -1,11 +1,11 @@
 [project]
-name = "praxis-agentic"
+name = "marionette-agentic"
 version = "0.2.0"
-description = "Executable agentic TTP framework — ATLAS has the techniques, Praxis runs them."
+description = "Executable agentic TTP framework — ATLAS has the techniques, Marionette pulls the strings."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
-authors = [{name = "Praxis contributors"}]
+authors = [{name = "Marionette contributors"}]
 dependencies = ["pyyaml>=6.0"]
 keywords = [
     "security",
@@ -40,14 +40,14 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/praxis-agentic/praxis"
-Repository = "https://github.com/praxis-agentic/praxis"
-Issues = "https://github.com/praxis-agentic/praxis/issues"
-Changelog = "https://github.com/praxis-agentic/praxis/blob/main/CHANGELOG.md"
-Documentation = "https://github.com/praxis-agentic/praxis/tree/main/docs"
+Homepage = "https://github.com/marionette-agentic/marionette"
+Repository = "https://github.com/marionette-agentic/marionette"
+Issues = "https://github.com/marionette-agentic/marionette/issues"
+Changelog = "https://github.com/marionette-agentic/marionette/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/marionette-agentic/marionette/tree/main/docs"
 
 [project.scripts]
-praxis = "praxis.cli:main"
+marionette = "marionette.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
@@ -58,19 +58,19 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 # `techniques` and `reference` are DATA, not importable code — they hold no
-# Python at all. They are listed here anyway because `praxis run` resolves its
-# default technique directory relative to the installed `praxis` package
-# (`praxis/../techniques`), and the ATLAS catalog the validator cross-checks
-# against the same way (`praxis/../reference`). Listing them as packages is
-# what puts those two directories next to `praxis/` in site-packages, so a
-# non-editable `pip install praxis-agentic` gets a working CLI instead of
+# Python at all. They are listed here anyway because `marionette run` resolves its
+# default technique directory relative to the installed `marionette` package
+# (`marionette/../techniques`), and the ATLAS catalog the validator cross-checks
+# against the same way (`marionette/../reference`). Listing them as packages is
+# what puts those two directories next to `marionette/` in site-packages, so a
+# non-editable `pip install marionette-agentic` gets a working CLI instead of
 # "no technique YAML found". Remove them only together with a change to that
 # path resolution.
 packages = [
-    "praxis",
-    "praxis.targets",
-    "praxis.drift",
-    "praxis.range",
+    "marionette",
+    "marionette.targets",
+    "marionette.drift",
+    "marionette.range",
     "techniques",
     "reference",
     "rules",

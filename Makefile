@@ -1,4 +1,4 @@
-# Praxis — contributor convenience targets.
+# Marionette — contributor convenience targets.
 #
 # Everything here is a thin wrapper over the commands CI actually runs, so a
 # green `make check` locally means a green pipeline. POSIX sh only: this is
@@ -6,7 +6,7 @@
 #
 #   make install      editable install with dev extras
 #   make test         the unit suite
-#   make lint         technique + fleet lint (praxis validate)
+#   make lint         technique + fleet lint (marionette validate)
 #   make run          the whole pack against the built-in range
 #   make check        lint + test + run, in the order CI does them
 #   make flake-check  repeat the suite N times to catch races (N=5)
@@ -17,12 +17,12 @@ SHELL := /bin/sh
 PYTHON ?= python3
 PIP    ?= $(PYTHON) -m pip
 PYTEST ?= $(PYTHON) -m pytest
-PRAXIS ?= $(PYTHON) -m praxis.cli
+MARIONETTE ?= $(PYTHON) -m marionette.cli
 
 # Iterations for `make flake-check`. Override: make flake-check N=20
 N ?= 5
 
-# Extra flags forwarded to pytest / praxis run.
+# Extra flags forwarded to pytest / marionette run.
 PYTEST_ARGS ?=
 RUN_ARGS    ?=
 
@@ -35,8 +35,8 @@ help:
 	@echo "  install      pip install -e '.[dev]'"
 	@echo "  test         run the unit suite"
 	@echo "  test-fast    the suite without the slow subprocess tests"
-	@echo "  lint         praxis validate (technique pack + example fleet)"
-	@echo "  run          praxis run against the built-in range"
+	@echo "  lint         marionette validate (technique pack + example fleet)"
+	@echo "  run          marionette run against the built-in range"
 	@echo "  check        lint, test, run — what CI does"
 	@echo "  flake-check  run the suite N times (N=$(N)) to catch races"
 	@echo "  clean        remove caches and build artifacts"
@@ -54,10 +54,10 @@ test-fast:
 
 # The technique pack must lint clean before it is worth executing.
 lint:
-	$(PRAXIS) validate --targets-file targets.example.yaml
+	$(MARIONETTE) validate --targets-file targets.example.yaml
 
 run:
-	$(PRAXIS) run $(RUN_ARGS)
+	$(MARIONETTE) run $(RUN_ARGS)
 
 check: lint test run
 
@@ -69,7 +69,7 @@ flake-check:
 	while [ $$i -le $(N) ]; do \
 	  printf '--- iteration %s/%s ---\n' "$$i" "$(N)"; \
 	  if $(PYTEST) -q $(PYTEST_ARGS); then :; else fails=$$((fails + 1)); fi; \
-	  $(PRAXIS) run --quiet || fails=$$((fails + 1)); \
+	  $(MARIONETTE) run --quiet || fails=$$((fails + 1)); \
 	  i=$$((i + 1)); \
 	done; \
 	if [ $$fails -ne 0 ]; then \
@@ -81,4 +81,4 @@ clean:
 	rm -rf build dist .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage
 	rm -rf *.egg-info
 	find . -name '__pycache__' -type d -prune -exec rm -rf {} +
-	rm -f praxis-results.json praxis-results.xml
+	rm -f marionette-results.json marionette-results.xml
