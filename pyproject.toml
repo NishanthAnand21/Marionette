@@ -1,0 +1,87 @@
+[project]
+name = "praxis-agentic"
+version = "0.2.0"
+description = "Executable agentic TTP framework — ATLAS has the techniques, Praxis runs them."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [{name = "Praxis contributors"}]
+dependencies = ["pyyaml>=6.0"]
+keywords = [
+    "security",
+    "adversary-emulation",
+    "purple-team",
+    "detection-engineering",
+    "mitre-atlas",
+    "owasp",
+    "llm-security",
+    "ai-agents",
+    "mcp",
+    "model-context-protocol",
+    "prompt-injection",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/praxis-agentic/praxis"
+Repository = "https://github.com/praxis-agentic/praxis"
+Issues = "https://github.com/praxis-agentic/praxis/issues"
+Changelog = "https://github.com/praxis-agentic/praxis/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/praxis-agentic/praxis/tree/main/docs"
+
+[project.scripts]
+praxis = "praxis.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# `techniques` and `reference` are DATA, not importable code — they hold no
+# Python at all. They are listed here anyway because `praxis run` resolves its
+# default technique directory relative to the installed `praxis` package
+# (`praxis/../techniques`), and the ATLAS catalog the validator cross-checks
+# against the same way (`praxis/../reference`). Listing them as packages is
+# what puts those two directories next to `praxis/` in site-packages, so a
+# non-editable `pip install praxis-agentic` gets a working CLI instead of
+# "no technique YAML found". Remove them only together with a change to that
+# path resolution.
+packages = [
+    "praxis",
+    "praxis.targets",
+    "praxis.drift",
+    "praxis.range",
+    "techniques",
+    "reference",
+    "rules",
+]
+
+[tool.setuptools.package-data]
+techniques = ["*.yaml", "*.yml"]
+reference = ["*.yaml", "*.yml"]
+rules = ["*.yaml", "*.yml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Registered so `-m "not slow"` works and an unknown mark stays a real signal.
+markers = ["slow: resource/scale tests; deselect with -m 'not slow'"]

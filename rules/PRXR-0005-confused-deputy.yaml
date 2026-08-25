@@ -1,0 +1,35 @@
+id: PRXR-0005
+title: Privileged tool invoked on behalf of untrusted content
+status: stable
+level: critical
+description: >
+  A tool that reads secrets, touches the filesystem, executes code or destroys
+  data was called with a provenance other than the user. The agent's authority
+  was real and the request was not: this is the confused-deputy condition
+  stated in exactly the two fields that make it expressible, `provenance` and
+  the tool's privilege class. Per-call policy engines pass these invocations
+  because the call itself is well-formed and the credential is genuine.
+detection:
+  selection:
+    type: agent.tool.call
+    tool_name:
+      - read_secret
+      - read_credentials
+      - read_file
+      - exec_code
+      - delete_records
+  trusted:
+    provenance: user
+  condition: selection and not trusted
+covers: [PRX-0003, PRX-0022, PRX-0023, PRX-0026]
+atlas: [AML.T0053, AML.T0055]
+owasp: [ASI03, LLM06]
+falsepositives:
+  - >
+    Chained plans legitimately produce non-user provenance: an agent that
+    reads a config file because a previous tool returned its path is doing
+    what it was asked. Tighten by requiring the privileged call to be absent
+    from the user's original request, or allowlist known safe chains.
+  - >
+    The privileged tool list is deployment-specific. Replace these names with
+    your own before shipping; an empty or stale list silently disables the rule.

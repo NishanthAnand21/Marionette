@@ -1,0 +1,258 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same branch makes the in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      # One old interpreter failing should not hide whether the others pass.
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # Dev-only, never a runtime dependency: with `mcp` present,
+      # tests/test_interop.py exercises the adapter against a server built by
+      # the official SDK instead of skipping. The `install` job below
+      # deliberately does NOT install it, so the packaging contract is still
+      # checked without it.
+      - name: install the official MCP SDK (dev-only, for interop tests)
+        run: pip install mcp
+
+      # Lint before running: a malformed technique should fail here with the
+      # whole list of problems, not halfway through an execution.
+      - name: lint the technique pack
+        run: praxis validate --targets-file targets.example.yaml
+
+      - name: unit tests
+        run: pytest -q
+
+      - name: rule pack must not contain a rule that can never fire
+        run: |
+          praxis run --events /tmp/corpus.jsonl
+          praxis rules validate --against /tmp/corpus.jsonl
+
+      # The end-to-end gate. `praxis run` already exits nonzero on a failure,
+      # but exit code alone cannot tell "everything passed" from "everything
+      # skipped", so the counts are asserted explicitly.
+      - name: run the pack against the built-in range
+        run: |
+          praxis run --json praxis-results.json --junit praxis-results.xml
+          python - <<'PY'
+          import json, sys
+          r = json.load(open("praxis-results.json"))
+          t = r["totals"]
+          print("totals:", t, "exit_code:", r["exit_code"])
+          bad = {k: t.get(k, 0) for k in ("fail", "skip", "error")
+                 if t.get(k, 0)}
+          if bad:
+              sys.exit(f"pack is not green: {bad}")
+          if not t.get("pass"):
+              sys.exit("no technique executed; the pack did not run")
+          if r["exit_code"] != 0:
+              sys.exit(f"nonzero exit_code {r['exit_code']} with a clean pack")
+          print(f"{t['pass']} techniques green")
+          PY
+
+      # The techniques run against the real MCP adapter over stdio too, not
+      # only the in-process mock: same adapter code path as a real server.
+      - name: run against the bundled vulnerable MCP server
+        run: praxis run --targets-file targets.example.yaml --tag ci
+
+      - name: upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: praxis-results-py${{ matrix.python-version }}
+          path: |
+            praxis-results.json
+            praxis-results.xml
+          if-no-files-found: ignore
+
+  portability:
+    # The ubuntu matrix above is the gate. This job answers a different
+    # question: does Praxis — which spawns subprocesses, drives pipes from
+    # dedicated threads, and prints ANSI/Unicode — behave the same off Linux?
+    # One Python version per OS keeps the bill sane; 3.12 is the version the
+    # other single-OS jobs already use.
+    name: portability (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    # Windows is now a HARD GATE. The defects that made it advisory are fixed:
+    # `shlex.split` runs in non-POSIX mode on nt so backslash paths survive,
+    # the env allowlist is matched case-insensitively (os.environ upper-cases
+    # its keys there), status glyphs fall back to ASCII when stdout cannot
+    # encode them, and report artifacts are written newline="" so they stay
+    # LF-only. If this job goes red, fix the defect — do not re-add
+    # continue-on-error.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # Dev-only: `mcp` is deliberately not a runtime dependency. Installing
+      # it here is what makes tests/test_interop.py actually run instead of
+      # skipping, on every OS.
+      - name: install the official MCP SDK (dev-only, for interop tests)
+        run: pip install mcp
+
+      - name: lint the technique pack
+        run: praxis validate --targets-file targets.example.yaml
+
+      # UTF-8 is forced because Praxis prints ✓/✗/→ and a redirected stdout on
+      # Windows otherwise falls back to cp1252 and raises UnicodeEncodeError.
+      # That is itself a portability defect; the env var keeps the rest of the
+      # job meaningful instead of dying on the first status glyph.
+      - name: unit tests
+        env:
+          PYTHONUTF8: "1"
+        run: pytest -q
+
+      - name: interop against the real MCP SDK
+        env:
+          PYTHONUTF8: "1"
+        run: pytest -q tests/test_interop.py
+
+      # Same end-to-end gate as the ubuntu job. $RUNNER_TEMP is used instead of
+      # /tmp, which does not exist on Windows.
+      - name: run the pack against the built-in range
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          praxis run --events "$RUNNER_TEMP/corpus.jsonl" --quiet
+          praxis rules validate --against "$RUNNER_TEMP/corpus.jsonl"
+          praxis run --json "$RUNNER_TEMP/praxis-results.json" --quiet
+
+      # POSIX-only: targets.example.yaml launches its servers with shell-style
+      # command strings, which praxis splits with shlex (POSIX rules). Skipped
+      # The example fleet quotes POSIX-style commands, so it stays POSIX-only.
+      # This is about the fixture's shell quoting, not a Praxis limitation.
+      - name: run against the bundled vulnerable MCP server (POSIX only)
+        if: runner.os != 'Windows'
+        run: praxis run --targets-file targets.example.yaml --tag ci
+
+  flake-check:
+    # This project has shipped two real concurrency races (a fail_fast window
+    # in the engine, and order-dependence across techniques). Both were
+    # intermittent. A single green run does not prove either is gone, so the
+    # suite is repeated and every repetition must pass.
+    name: flake check (5x)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: repeat the suite
+        run: |
+          fails=0
+          for i in 1 2 3 4 5; do
+            echo "::group::iteration $i"
+            # -p no:randomly so the repetition varies scheduling, not ordering
+            if pytest -q; then
+              echo "iteration $i ok"
+            else
+              echo "iteration $i FAILED"
+              fails=$((fails + 1))
+            fi
+            echo "::endgroup::"
+          done
+          if [ "$fails" -ne 0 ]; then
+            echo "$fails/5 iterations failed — the suite is flaky"
+            exit 1
+          fi
+          echo "5/5 iterations passed"
+
+      - name: repeat the pack
+        run: |
+          for i in 1 2 3 4 5; do
+            praxis run --quiet || exit 1
+          done
+
+  install:
+    # Guards the packaging contract: `praxis run` resolves its default
+    # technique directory relative to the installed package, so a
+    # non-editable install must ship `techniques/` and `reference/` next to
+    # `praxis/`. Run from a directory that is not the repo, or the check
+    # passes for the wrong reason.
+    name: non-editable install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: install from source (not editable)
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: run from an unrelated working directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/elsewhere"
+          cd "$RUNNER_TEMP/elsewhere"
+          praxis list
+          praxis validate
+          praxis run --quiet

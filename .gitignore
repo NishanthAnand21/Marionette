@@ -1,0 +1,33 @@
+# virtualenvs
+.venv/
+venv/
+
+# python bytecode / build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# test + tool caches
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# praxis run artifacts (reports, snapshots, event dumps)
+*.junit.xml
+praxis-results.json
+snapshot-*.json
+events-*.jsonl
+
+# local fleet definitions may hold real hostnames or tokens; the checked-in
+# example is targets.example.yaml, never targets.yaml
+targets.yaml
+
+# editors / OS
+.DS_Store
+.idea/
+.vscode/

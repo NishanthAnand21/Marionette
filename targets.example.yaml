@@ -1,0 +1,49 @@
+# Praxis fleet definition — the set of targets one `praxis run` covers.
+#
+#   praxis run --targets-file targets.example.yaml
+#   praxis run --targets-file targets.example.yaml --tag prod
+#   praxis targets --targets-file targets.example.yaml
+#
+# Every key under `defaults:` is merged into each entry, with the entry
+# winning. Keep secrets out of this file — use env interpolation in your
+# shell or a secrets manager and pass them through `env:`.
+
+# Targets do NOT inherit your environment: Praxis spawns servers it is testing
+# for hostility, and handing them AWS_SECRET_ACCESS_KEY / GITHUB_TOKEN is not a
+# reasonable default. Put anything a server legitimately needs in its `env:`,
+# or set `inherit_env: true` on that target to opt back in.
+defaults:
+  # Seconds to wait for any single target operation. MCP servers that cold
+  # start an interpreter routinely need more than the 20s default.
+  timeout: 20
+  enabled: true
+
+targets:
+  # The built-in, deliberately gullible in-process range. Needs no external
+  # process, so it is the safe default and the one CI always runs.
+  - name: range
+    kind: mock
+    tags: [ci, safe]
+
+  # The bundled vulnerable MCP server, spoken to over real stdio JSON-RPC.
+  # This is the honest end-to-end path: same adapter code as a real server.
+  - name: vulnerable-mcp
+    kind: mcp
+    command: "python3 -m praxis.range.vulnerable_mcp_server"
+    cwd: "."
+    tags: [ci, mcp, vulnerable]
+    timeout: 30
+
+  # A real server you own. Disabled by default so a fresh clone of this file
+  # never fires techniques at production by accident — flip `enabled` when
+  # you actually mean it.
+  - name: prod-mail
+    kind: mcp
+    command: "python3 -m mycompany.mail_mcp"
+    cwd: "/srv/mail-mcp"
+    env:
+      MCP_TOKEN: "replace-me"
+      MCP_ENV: "staging"
+    tags: [prod, email]
+    timeout: 45
+    enabled: false

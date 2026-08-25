@@ -1,0 +1,28 @@
+id: PRXR-0003
+title: Registered tool shadows a name the planner already trusts
+status: stable
+level: critical
+description: >
+  A tool was registered at runtime under a name that was already bound. From
+  the model's point of view nothing changed: the same name it has been calling
+  all session now resolves to different code, supplied by whoever won the
+  registration race. Name collisions across MCP servers make this reachable
+  without any compromise of the original server.
+detection:
+  selection:
+    type: agent.tool.list
+    kind: tool_added
+    data.shadowed: true
+  condition: selection
+covers: [PRX-0013, PRX-0018]
+atlas: [AML.T0110, AML.T0072]
+owasp: [ASI04]
+falsepositives:
+  - >
+    Hot-reload during development re-registers every tool on each edit and
+    will fire on all of them. Scope this rule to production sessions, or
+    suppress it for the first N seconds of a session while the registry warms.
+  - >
+    A framework that re-registers a tool to update its schema (rather than to
+    replace its behaviour) is benign; compare the implementation identity, not
+    just the name, before acting.
